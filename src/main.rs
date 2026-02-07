@@ -62,6 +62,8 @@ fn main() {
             OnEnter(GameState::Playing),
             (spawn_paddle, spawn_ball).run_if(any_with_component::<Block>),
         )
+        // UI scale (runs always)
+        .add_systems(Update, update_ui_scale)
         // Playing state - update
         .add_systems(
             Update,

@@ -1,12 +1,35 @@
 use bevy::prelude::*;
+use bevy::render::camera::ScalingMode;
 
 use crate::components::*;
 use crate::constants::*;
 use crate::resources::*;
 
-/// Setup the 2D camera
+/// Setup the 2D camera with scaling to fit mobile screens
 pub fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((
+        Camera2d,
+        OrthographicProjection {
+            scaling_mode: ScalingMode::AutoMin {
+                min_width: WINDOW_WIDTH,
+                min_height: WINDOW_HEIGHT,
+            },
+            ..OrthographicProjection::default_2d()
+        },
+    ));
+}
+
+/// Scale UI based on window width to prevent text overflow on small screens
+pub fn update_ui_scale(
+    windows: Query<&Window>,
+    mut ui_scale: ResMut<UiScale>,
+) {
+    if let Ok(window) = windows.get_single() {
+        let scale = (window.width() / WINDOW_WIDTH).clamp(0.5, 1.0);
+        if (ui_scale.0 - scale).abs() > 0.01 {
+            ui_scale.0 = scale;
+        }
+    }
 }
 
 /// Spawn the paddle

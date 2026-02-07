@@ -11,6 +11,7 @@ pub fn paddle_input(
     touches: Res<Touches>,
     time: Res<Time>,
     mut query: Query<&mut Transform, With<Paddle>>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
 ) {
     let Ok(mut paddle_transform) = query.get_single_mut() else {
         return;
@@ -20,10 +21,13 @@ pub fn paddle_input(
     let limit = WINDOW_WIDTH / 2.0 - WALL_THICKNESS - half_paddle;
 
     // Touch input: move paddle directly to touch X position
-    if let Some(pos) = touches.first_pressed_position() {
-        let game_x = pos.x - WINDOW_WIDTH / 2.0;
-        paddle_transform.translation.x = game_x.clamp(-limit, limit);
-        return;
+    if let Some(screen_pos) = touches.first_pressed_position() {
+        if let Ok((camera, cam_transform)) = camera_query.get_single() {
+            if let Ok(world_pos) = camera.viewport_to_world_2d(cam_transform, screen_pos) {
+                paddle_transform.translation.x = world_pos.x.clamp(-limit, limit);
+                return;
+            }
+        }
     }
 
     // Keyboard input
