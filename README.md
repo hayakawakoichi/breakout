@@ -2,6 +2,9 @@
 
 Rust + Bevy 0.15 で作成したブロック崩しゲーム。
 
+![メニュー画面](docs/screenshot_menu.png)
+![ゲームプレイ画面](docs/screenshot_gameplay.png)
+
 ## 技術スタック
 
 - **言語**: Rust (edition 2021)

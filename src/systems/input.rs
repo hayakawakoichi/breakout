@@ -1,3 +1,4 @@
+use bevy::input::touch::Touches;
 use bevy::prelude::*;
 
 use crate::components::*;
@@ -7,6 +8,7 @@ use crate::states::GameState;
 /// Handle paddle movement input
 pub fn paddle_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     time: Res<Time>,
     mut query: Query<&mut Transform, With<Paddle>>,
 ) {
@@ -14,6 +16,17 @@ pub fn paddle_input(
         return;
     };
 
+    let half_paddle = PADDLE_WIDTH / 2.0;
+    let limit = WINDOW_WIDTH / 2.0 - WALL_THICKNESS - half_paddle;
+
+    // Touch input: move paddle directly to touch X position
+    if let Some(pos) = touches.first_pressed_position() {
+        let game_x = pos.x - WINDOW_WIDTH / 2.0;
+        paddle_transform.translation.x = game_x.clamp(-limit, limit);
+        return;
+    }
+
+    // Keyboard input
     let mut direction = 0.0;
 
     if keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::KeyA) {
@@ -24,19 +37,16 @@ pub fn paddle_input(
     }
 
     let new_x = paddle_transform.translation.x + direction * PADDLE_SPEED * time.delta_secs();
-
-    // Clamp to screen bounds
-    let half_paddle = PADDLE_WIDTH / 2.0;
-    let limit = WINDOW_WIDTH / 2.0 - WALL_THICKNESS - half_paddle;
     paddle_transform.translation.x = new_x.clamp(-limit, limit);
 }
 
-/// Handle game start input (Space to start)
+/// Handle game start input (Space or tap to start)
 pub fn start_game_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
+    if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
 }
@@ -59,9 +69,10 @@ pub fn pause_input(
 /// Handle restart input after game over
 pub fn restart_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
+    if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         next_state.set(GameState::Menu);
     }
 }
@@ -69,9 +80,10 @@ pub fn restart_input(
 /// Handle next level input
 pub fn next_level_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
+    if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
 }

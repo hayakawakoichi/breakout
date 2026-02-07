@@ -38,7 +38,7 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 
             // Start instruction
             parent.spawn((
-                Text::new("SPACE でスタート"),
+                Text::new("SPACE / タップ でスタート"),
                 TextFont {
                     font: font_handle.clone(),
                     font_size: 28.0,
@@ -50,7 +50,7 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 
             // Controls
             parent.spawn((
-                Text::new("← → / A D  パドル操作\nESC  ポーズ"),
+                Text::new("← → / タップ  パドル操作\nESC  ポーズ"),
                 TextFont {
                     font: font_handle,
                     font_size: 20.0,
@@ -115,7 +115,7 @@ pub fn setup_game_over(mut commands: Commands, score: Res<Score>, level: Res<Lev
 
             // Restart instruction
             parent.spawn((
-                Text::new("SPACE でリトライ"),
+                Text::new("SPACE / タップ でリトライ"),
                 TextFont {
                     font: font_handle,
                     font_size: 24.0,
@@ -180,7 +180,7 @@ pub fn setup_level_clear(mut commands: Commands, score: Res<Score>, level: Res<L
 
             // Next level instruction
             parent.spawn((
-                Text::new("SPACE で次のレベルへ"),
+                Text::new("SPACE / タップ で次のレベルへ"),
                 TextFont {
                     font: font_handle,
                     font_size: 24.0,
