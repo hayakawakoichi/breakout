@@ -29,7 +29,10 @@ pub fn play_collision_sounds(
         };
 
         if let Some(source) = sound {
-            commands.spawn(AudioPlayer::new(source));
+            commands.spawn((
+                AudioPlayer::new(source),
+                PlaybackSettings::DESPAWN,
+            ));
         }
     }
 }

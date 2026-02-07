@@ -12,9 +12,26 @@ pub struct Ball;
 #[derive(Component)]
 pub struct Velocity(pub Vec2);
 
-/// Block marker component
+/// Block type variants
+#[derive(Clone, Copy, PartialEq)]
+pub enum BlockType {
+    Normal,
+    Durable { hits_remaining: u32 },
+    Steel,
+    Explosive,
+}
+
+/// Block component with type information
 #[derive(Component)]
-pub struct Block;
+pub struct Block {
+    pub block_type: BlockType,
+}
+
+/// Combo popup UI marker
+#[derive(Component)]
+pub struct ComboPopup {
+    pub timer: Timer,
+}
 
 /// Wall type for collision handling
 #[derive(Component)]

@@ -70,9 +70,9 @@ pub fn spawn_ball(mut commands: Commands, level: Res<Level>) {
     ));
 }
 
-/// Spawn blocks in a grid pattern
-pub fn spawn_blocks(mut commands: Commands) {
-    let colors = [
+/// Get color for a block type
+fn block_type_color(block_type: &BlockType, row: usize) -> Color {
+    let normal_colors = [
         Color::srgb(0.92, 0.44, 0.44), // Coral
         Color::srgb(0.95, 0.60, 0.35), // Orange
         Color::srgb(0.95, 0.85, 0.40), // Yellow
@@ -80,28 +80,160 @@ pub fn spawn_blocks(mut commands: Commands) {
         Color::srgb(0.44, 0.60, 0.92), // Blue
     ];
 
+    match block_type {
+        BlockType::Normal => normal_colors[row % normal_colors.len()],
+        BlockType::Durable { hits_remaining } => match hits_remaining {
+            3 => Color::srgb(0.55, 0.15, 0.15), // Dark red
+            2 => Color::srgb(0.80, 0.35, 0.15), // Dark orange
+            _ => Color::srgb(0.95, 0.60, 0.35), // Orange (about to break)
+        },
+        BlockType::Steel => Color::srgb(0.50, 0.50, 0.55),    // Grey
+        BlockType::Explosive => Color::srgb(0.90, 0.30, 0.30), // Red-purple
+    }
+}
+
+/// Get color for a durable block based on remaining hits
+pub fn durable_color(hits_remaining: u32) -> Color {
+    match hits_remaining {
+        3 => Color::srgb(0.55, 0.15, 0.15),
+        2 => Color::srgb(0.80, 0.35, 0.15),
+        _ => Color::srgb(0.95, 0.60, 0.35),
+    }
+}
+
+/// Spawn a single block at the given position
+fn spawn_block(commands: &mut Commands, x: f32, y: f32, block_type: BlockType, row: usize) {
+    let color = block_type_color(&block_type, row);
+    commands.spawn((
+        Sprite {
+            color,
+            custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
+            ..default()
+        },
+        Transform::from_xyz(x, y, 0.0),
+        Block { block_type },
+        Collider {
+            size: Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT),
+        },
+    ));
+}
+
+/// Grid helper: compute x position for a column
+fn grid_x(col: usize) -> f32 {
     let total_width = BLOCK_COLS as f32 * (BLOCK_WIDTH + BLOCK_GAP) - BLOCK_GAP;
     let start_x = -total_width / 2.0 + BLOCK_WIDTH / 2.0;
+    start_x + col as f32 * (BLOCK_WIDTH + BLOCK_GAP)
+}
+
+/// Grid helper: compute y position for a row
+fn grid_y(row: usize) -> f32 {
+    BLOCKS_START_Y - row as f32 * (BLOCK_HEIGHT + BLOCK_GAP)
+}
+
+/// Spawn blocks based on current level
+pub fn spawn_blocks(mut commands: Commands, level: Res<Level>) {
+    match level.current {
+        1 => spawn_level_1(&mut commands),
+        2 => spawn_level_2(&mut commands),
+        3 => spawn_level_3(&mut commands),
+        _ => spawn_generated_level(&mut commands, level.current),
+    }
+}
+
+/// Level 1: Standard 5x10 grid (Normal blocks only)
+fn spawn_level_1(commands: &mut Commands) {
+    for row in 0..BLOCK_ROWS {
+        for col in 0..BLOCK_COLS {
+            spawn_block(commands, grid_x(col), grid_y(row), BlockType::Normal, row);
+        }
+    }
+}
+
+/// Level 2: Diamond pattern with Durable(2) blocks mixed in
+fn spawn_level_2(commands: &mut Commands) {
+    let center_col = BLOCK_COLS / 2;
+    let rows = 7;
+    for row in 0..rows {
+        // Diamond shape: width expands then contracts
+        let half_width = if row <= rows / 2 { row + 1 } else { rows - row };
+        let start = center_col.saturating_sub(half_width);
+        let end = (center_col + half_width).min(BLOCK_COLS);
+
+        for col in start..end {
+            let block_type = if (row + col) % 3 == 0 {
+                BlockType::Durable { hits_remaining: 2 }
+            } else {
+                BlockType::Normal
+            };
+            spawn_block(commands, grid_x(col), grid_y(row), block_type, row);
+        }
+    }
+}
+
+/// Level 3: Full grid with Steel barrier in the middle, Explosive blocks behind it
+fn spawn_level_3(commands: &mut Commands) {
+    // 7 rows for more depth
+    let rows = 7;
+    for row in 0..rows {
+        for col in 0..BLOCK_COLS {
+            let block_type = if row == 3 && col != 2 && col != 7 {
+                // Row 3: Steel barrier with gaps at col 2 and 7
+                BlockType::Steel
+            } else if row <= 1 && col >= 3 && col <= 6 {
+                // Rows 0-1, center: Explosive blocks (behind Steel, reached last)
+                BlockType::Explosive
+            } else if row <= 2 {
+                // Rows 0-2 (above Steel): Durable blocks
+                BlockType::Durable { hits_remaining: 2 }
+            } else {
+                // Rows 4-6 (below Steel): Normal blocks (hit first)
+                BlockType::Normal
+            };
+
+            spawn_block(commands, grid_x(col), grid_y(row), block_type, row);
+        }
+    }
+}
+
+/// Level 4+: Auto-generated grid with increasing special block ratios
+fn spawn_generated_level(commands: &mut Commands, level: u32) {
+    // Probabilities increase with level
+    let durable_chance = (0.10 + (level - 4) as f32 * 0.05).min(0.35);
+    let steel_chance = (0.05 + (level - 4) as f32 * 0.03).min(0.15);
+    let explosive_chance = (0.05 + (level - 4) as f32 * 0.02).min(0.12);
 
     for row in 0..BLOCK_ROWS {
         for col in 0..BLOCK_COLS {
-            let x = start_x + col as f32 * (BLOCK_WIDTH + BLOCK_GAP);
-            let y = BLOCKS_START_Y - row as f32 * (BLOCK_HEIGHT + BLOCK_GAP);
+            let roll = level_rand(level, row as u32, col as u32);
 
-            commands.spawn((
-                Sprite {
-                    color: colors[row % colors.len()],
-                    custom_size: Some(Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT)),
-                    ..default()
-                },
-                Transform::from_xyz(x, y, 0.0),
-                Block,
-                Collider {
-                    size: Vec2::new(BLOCK_WIDTH, BLOCK_HEIGHT),
-                },
-            ));
+            let block_type = if roll < steel_chance {
+                BlockType::Steel
+            } else if roll < steel_chance + explosive_chance {
+                BlockType::Explosive
+            } else if roll < steel_chance + explosive_chance + durable_chance {
+                let hits = if level >= 6 && level_rand(level, row as u32 + 100, col as u32) < 0.3 {
+                    3
+                } else {
+                    2
+                };
+                BlockType::Durable { hits_remaining: hits }
+            } else {
+                BlockType::Normal
+            };
+
+            spawn_block(commands, grid_x(col), grid_y(row), block_type, row);
         }
     }
+}
+
+/// Deterministic pseudo-random based on level, row, col
+fn level_rand(level: u32, row: u32, col: u32) -> f32 {
+    let seed = level
+        .wrapping_mul(7919)
+        .wrapping_add(row.wrapping_mul(1301))
+        .wrapping_add(col.wrapping_mul(3571));
+    let n = seed.wrapping_mul(1103515245).wrapping_add(12345);
+    (n & 0x7FFFFFFF) as f32 / 0x7FFFFFFF as f32
 }
 
 /// Spawn walls around the play area

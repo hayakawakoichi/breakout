@@ -45,6 +45,7 @@ fn main() {
         .init_resource::<Level>()
         .init_resource::<GameSounds>()
         .init_resource::<ScreenShake>()
+        .init_resource::<ComboTracker>()
         // Initialize state
         .init_state::<GameState>()
         // Register events
@@ -88,11 +89,13 @@ fn main() {
                 powerup_movement,
                 paddle_powerup_collision,
                 update_powerup_effects,
+                update_combo_timer,
+                spawn_combo_popup,
             )
                 .run_if(in_state(GameState::Playing)),
         )
-        // Particle and screen shake effects (run always so particles finish even after state change)
-        .add_systems(Update, (update_particles, apply_screen_shake))
+        // Particle, screen shake, and combo popup effects (run always so they finish even after state change)
+        .add_systems(Update, (update_particles, apply_screen_shake, update_combo_popup))
         // Sound system runs in all states to catch game over / level clear events
         .add_systems(Update, play_collision_sounds)
         // Paused state

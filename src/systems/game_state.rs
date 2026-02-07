@@ -217,6 +217,7 @@ pub fn reset_game(
     mut commands: Commands,
     mut score: ResMut<Score>,
     mut level: ResMut<Level>,
+    mut combo: ResMut<ComboTracker>,
     game_entities: Query<
         Entity,
         Or<(
@@ -227,6 +228,7 @@ pub fn reset_game(
             With<ScoreText>,
             With<LevelText>,
             With<PowerUp>,
+            With<ComboPopup>,
         )>,
     >,
     mut paddle_query: Query<(Entity, &mut Sprite, &mut Collider), With<Paddle>>,
@@ -241,6 +243,8 @@ pub fn reset_game(
     // Reset resources
     score.value = 0;
     level.current = 1;
+    combo.count = 0;
+    combo.timer.reset();
 
     // Despawn game entities
     for entity in &game_entities {
@@ -248,11 +252,12 @@ pub fn reset_game(
     }
 }
 
-/// Cleanup for next level (remove ball, paddle, and power-ups)
+/// Cleanup for next level (remove ball, paddle, power-ups, and combo popups)
 pub fn cleanup_for_next_level(
     mut commands: Commands,
-    entities: Query<Entity, Or<(With<Ball>, With<Paddle>, With<PowerUp>)>>,
+    entities: Query<Entity, Or<(With<Ball>, With<Paddle>, With<PowerUp>, With<ComboPopup>, With<Block>)>>,
     mut paddle_query: Query<(Entity, &mut Sprite, &mut Collider), With<Paddle>>,
+    mut combo: ResMut<ComboTracker>,
 ) {
     // Reset paddle size if power-up was active
     for (paddle_entity, mut sprite, mut collider) in &mut paddle_query {
@@ -260,6 +265,10 @@ pub fn cleanup_for_next_level(
         collider.size = Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT);
         commands.entity(paddle_entity).remove::<PowerUpEffects>();
     }
+
+    // Reset combo
+    combo.count = 0;
+    combo.timer.reset();
 
     for entity in &entities {
         commands.entity(entity).despawn();

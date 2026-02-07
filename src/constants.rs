@@ -40,6 +40,14 @@ pub const SHAKE_TRAUMA: f32 = 0.5;
 pub const SHAKE_DECAY: f32 = 1.5;
 pub const SHAKE_MAX_OFFSET: f32 = 8.0;
 
+// Special blocks
+pub const DURABLE_SCORE_BONUS: u32 = 5;
+pub const EXPLOSIVE_RADIUS: f32 = 100.0;
+
+// Combo system
+pub const COMBO_WINDOW: f32 = 1.5;
+pub const COMBO_POPUP_DURATION: f32 = 0.8;
+
 // Power-ups
 pub const POWERUP_DROP_CHANCE: f32 = 0.15;
 pub const POWERUP_FALL_SPEED: f32 = 150.0;

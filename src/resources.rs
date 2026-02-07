@@ -34,6 +34,24 @@ pub struct ScreenShake {
     pub trauma: f32,
 }
 
+/// Combo tracking resource
+#[derive(Resource)]
+pub struct ComboTracker {
+    pub count: u32,
+    pub timer: Timer,
+    pub last_score_gained: u32,
+}
+
+impl Default for ComboTracker {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            timer: Timer::from_seconds(crate::constants::COMBO_WINDOW, TimerMode::Once),
+            last_score_gained: 0,
+        }
+    }
+}
+
 /// Sound handles resource
 #[derive(Resource, Default)]
 pub struct GameSounds {

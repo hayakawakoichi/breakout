@@ -7,6 +7,7 @@ pub mod audio;
 pub mod game_state;
 pub mod effects;
 pub mod powerup;
+pub mod combo;
 
 pub use setup::*;
 pub use input::*;
@@ -17,3 +18,4 @@ pub use audio::*;
 pub use game_state::*;
 pub use effects::*;
 pub use powerup::*;
+pub use combo::*;
