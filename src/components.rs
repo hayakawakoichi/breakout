@@ -61,3 +61,29 @@ pub struct Particle {
     pub lifetime: Timer,
     pub velocity: Vec2,
 }
+
+/// Power-up item types
+#[derive(Clone, Copy, PartialEq)]
+pub enum PowerUpType {
+    WidePaddle,
+    MultiBall,
+    SlowBall,
+}
+
+/// Marker component for falling power-up items
+#[derive(Component)]
+pub struct PowerUp {
+    pub power_type: PowerUpType,
+}
+
+/// Single active power-up effect entry
+pub struct ActiveEffect {
+    pub effect_type: PowerUpType,
+    pub timer: Timer,
+}
+
+/// Active power-up effects attached to paddle (supports multiple simultaneous effects)
+#[derive(Component, Default)]
+pub struct PowerUpEffects {
+    pub effects: Vec<ActiveEffect>,
+}

@@ -36,6 +36,15 @@ pub const PARTICLE_SPEED: f32 = 200.0;
 pub const PARTICLE_LIFETIME: f32 = 0.4;
 
 // Screen shake
-pub const SHAKE_TRAUMA: f32 = 0.3;
-pub const SHAKE_DECAY: f32 = 3.0;
-pub const SHAKE_MAX_OFFSET: f32 = 5.0;
+pub const SHAKE_TRAUMA: f32 = 0.5;
+pub const SHAKE_DECAY: f32 = 1.5;
+pub const SHAKE_MAX_OFFSET: f32 = 8.0;
+
+// Power-ups
+pub const POWERUP_DROP_CHANCE: f32 = 0.15;
+pub const POWERUP_FALL_SPEED: f32 = 150.0;
+pub const POWERUP_SIZE: f32 = 20.0;
+pub const WIDE_PADDLE_DURATION: f32 = 8.0;
+pub const WIDE_PADDLE_MULTIPLIER: f32 = 1.5;
+pub const SLOW_BALL_DURATION: f32 = 6.0;
+pub const SLOW_BALL_MULTIPLIER: f32 = 0.6;

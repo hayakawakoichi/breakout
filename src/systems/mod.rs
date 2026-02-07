@@ -6,6 +6,7 @@ pub mod scoring;
 pub mod audio;
 pub mod game_state;
 pub mod effects;
+pub mod powerup;
 
 pub use setup::*;
 pub use input::*;
@@ -15,3 +16,4 @@ pub use scoring::*;
 pub use audio::*;
 pub use game_state::*;
 pub use effects::*;
+pub use powerup::*;

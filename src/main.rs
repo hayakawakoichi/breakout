@@ -85,6 +85,9 @@ fn main() {
                 check_level_clear,
                 update_score_text,
                 update_level_text,
+                powerup_movement,
+                paddle_powerup_collision,
+                update_powerup_effects,
             )
                 .run_if(in_state(GameState::Playing)),
         )

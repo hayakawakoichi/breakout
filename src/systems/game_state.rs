@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::text::FontSmoothing;
 
 use crate::components::*;
+use crate::constants::*;
 use crate::resources::*;
 
 /// Setup menu screen
@@ -225,9 +226,18 @@ pub fn reset_game(
             With<Wall>,
             With<ScoreText>,
             With<LevelText>,
+            With<PowerUp>,
         )>,
     >,
+    mut paddle_query: Query<(Entity, &mut Sprite, &mut Collider), With<Paddle>>,
 ) {
+    // Reset paddle size if power-up was active
+    for (paddle_entity, mut sprite, mut collider) in &mut paddle_query {
+        sprite.custom_size = Some(Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT));
+        collider.size = Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT);
+        commands.entity(paddle_entity).remove::<PowerUpEffects>();
+    }
+
     // Reset resources
     score.value = 0;
     level.current = 1;
@@ -238,11 +248,19 @@ pub fn reset_game(
     }
 }
 
-/// Cleanup for next level (remove ball and paddle only)
+/// Cleanup for next level (remove ball, paddle, and power-ups)
 pub fn cleanup_for_next_level(
     mut commands: Commands,
-    entities: Query<Entity, Or<(With<Ball>, With<Paddle>)>>,
+    entities: Query<Entity, Or<(With<Ball>, With<Paddle>, With<PowerUp>)>>,
+    mut paddle_query: Query<(Entity, &mut Sprite, &mut Collider), With<Paddle>>,
 ) {
+    // Reset paddle size if power-up was active
+    for (paddle_entity, mut sprite, mut collider) in &mut paddle_query {
+        sprite.custom_size = Some(Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT));
+        collider.size = Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT);
+        commands.entity(paddle_entity).remove::<PowerUpEffects>();
+    }
+
     for entity in &entities {
         commands.entity(entity).despawn();
     }
