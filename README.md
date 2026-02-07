@@ -2,6 +2,7 @@
 
 Rust + Bevy 0.15 で作成したファミコン風ブロック崩しゲーム。
 
+![ローディング画面](docs/screenshot_loading.png)
 ![メニュー画面](docs/screenshot_menu.png)
 ![ゲームプレイ画面](docs/screenshot_gameplay.png)
 
