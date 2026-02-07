@@ -28,6 +28,12 @@ impl Level {
 /// Font path constant
 pub const GAME_FONT_PATH: &str = "fonts/DotGothic16-Regular.ttf";
 
+/// Screen shake resource
+#[derive(Resource, Default)]
+pub struct ScreenShake {
+    pub trauma: f32,
+}
+
 /// Sound handles resource
 #[derive(Resource, Default)]
 pub struct GameSounds {

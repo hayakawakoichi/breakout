@@ -54,3 +54,10 @@ pub struct LevelClearUI;
 /// BGM music marker component
 #[derive(Component)]
 pub struct BgmMusic;
+
+/// Particle component for block destruction effects
+#[derive(Component)]
+pub struct Particle {
+    pub lifetime: Timer,
+    pub velocity: Vec2,
+}

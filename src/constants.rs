@@ -28,3 +28,14 @@ pub const SCORE_PER_BLOCK: u32 = 10;
 
 // Level system
 pub const SPEED_INCREASE_PER_LEVEL: f32 = 0.1;
+
+// Particles
+pub const PARTICLE_COUNT: usize = 6;
+pub const PARTICLE_SIZE: f32 = 4.0;
+pub const PARTICLE_SPEED: f32 = 200.0;
+pub const PARTICLE_LIFETIME: f32 = 0.4;
+
+// Screen shake
+pub const SHAKE_TRAUMA: f32 = 0.3;
+pub const SHAKE_DECAY: f32 = 3.0;
+pub const SHAKE_MAX_OFFSET: f32 = 5.0;

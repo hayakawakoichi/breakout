@@ -44,6 +44,7 @@ fn main() {
         .init_resource::<Score>()
         .init_resource::<Level>()
         .init_resource::<GameSounds>()
+        .init_resource::<ScreenShake>()
         // Initialize state
         .init_state::<GameState>()
         // Register events
@@ -87,6 +88,8 @@ fn main() {
             )
                 .run_if(in_state(GameState::Playing)),
         )
+        // Particle and screen shake effects (run always so particles finish even after state change)
+        .add_systems(Update, (update_particles, apply_screen_shake))
         // Sound system runs in all states to catch game over / level clear events
         .add_systems(Update, play_collision_sounds)
         // Paused state

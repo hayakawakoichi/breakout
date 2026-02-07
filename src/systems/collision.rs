@@ -100,30 +100,39 @@ pub fn ball_wall_collision(
 pub fn ball_block_collision(
     mut commands: Commands,
     mut ball_query: Query<(&Transform, &mut Velocity, &Collider), With<Ball>>,
-    block_query: Query<(Entity, &Transform, &Collider), With<Block>>,
+    block_query: Query<(Entity, &Transform, &Collider, &Sprite), With<Block>>,
     mut score: ResMut<Score>,
     mut collision_events: EventWriter<CollisionEvent>,
+    mut screen_shake: ResMut<crate::resources::ScreenShake>,
 ) {
     let Ok((ball_transform, mut ball_velocity, ball_collider)) = ball_query.get_single_mut() else {
         return;
     };
 
-    for (block_entity, block_transform, block_collider) in &block_query {
+    for (block_entity, block_transform, block_collider, block_sprite) in &block_query {
         if aabb_collision(
             ball_transform.translation.truncate(),
             ball_collider.size,
             block_transform.translation.truncate(),
             block_collider.size,
         ) {
+            let block_pos = block_transform.translation.truncate();
+            let block_color = block_sprite.color;
+
             // Despawn the block
             commands.entity(block_entity).despawn();
+
+            // Spawn particles
+            spawn_particles(&mut commands, block_pos, block_color);
+
+            // Trigger screen shake
+            screen_shake.trauma = (screen_shake.trauma + SHAKE_TRAUMA).min(1.0);
 
             // Add score
             score.value += SCORE_PER_BLOCK;
 
             // Determine reflection direction
             let ball_pos = ball_transform.translation.truncate();
-            let block_pos = block_transform.translation.truncate();
             let diff = ball_pos - block_pos;
 
             // Check which side was hit
@@ -142,6 +151,39 @@ pub fn ball_block_collision(
             break;
         }
     }
+}
+
+/// Spawn particle effects at the given position with the given color
+fn spawn_particles(commands: &mut Commands, position: Vec2, color: Color) {
+    use std::f32::consts::TAU;
+    use crate::components::Particle;
+
+    for i in 0..PARTICLE_COUNT {
+        // Spread particles evenly around a circle with some randomness
+        let base_angle = (i as f32 / PARTICLE_COUNT as f32) * TAU;
+        let angle = base_angle + simple_rand(i as u32) * 0.5;
+        let speed = PARTICLE_SPEED * (0.5 + simple_rand(i as u32 + 100) * 0.5);
+        let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+
+        commands.spawn((
+            Sprite {
+                color,
+                custom_size: Some(Vec2::splat(PARTICLE_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(position.x, position.y, 1.0),
+            Particle {
+                lifetime: Timer::from_seconds(PARTICLE_LIFETIME, TimerMode::Once),
+                velocity,
+            },
+        ));
+    }
+}
+
+/// Simple deterministic random-ish value in [0, 1) from a seed
+fn simple_rand(seed: u32) -> f32 {
+    let n = seed.wrapping_mul(1103515245).wrapping_add(12345);
+    (n & 0x7FFFFFFF) as f32 / 0x7FFFFFFF as f32
 }
 
 /// Check if all blocks are destroyed
