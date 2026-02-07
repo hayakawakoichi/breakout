@@ -35,4 +35,5 @@ pub struct GameSounds {
     pub break_block: Option<Handle<AudioSource>>,
     pub game_over: Option<Handle<AudioSource>>,
     pub level_up: Option<Handle<AudioSource>>,
+    pub bgm: Option<Handle<AudioSource>>,
 }

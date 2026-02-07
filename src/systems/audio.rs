@@ -1,5 +1,7 @@
+use bevy::audio::Volume;
 use bevy::prelude::*;
 
+use crate::components::BgmMusic;
 use crate::resources::*;
 
 /// Collision event types for sound playback
@@ -29,5 +31,37 @@ pub fn play_collision_sounds(
         if let Some(source) = sound {
             commands.spawn(AudioPlayer::new(source));
         }
+    }
+}
+
+/// Start BGM when entering Playing state
+pub fn start_bgm(mut commands: Commands, sounds: Res<GameSounds>) {
+    if let Some(source) = sounds.bgm.clone() {
+        commands.spawn((
+            AudioPlayer::new(source),
+            PlaybackSettings::LOOP.with_volume(Volume::new(0.4)),
+            BgmMusic,
+        ));
+    }
+}
+
+/// Stop BGM by despawning the BGM entity
+pub fn stop_bgm(mut commands: Commands, bgm_query: Query<Entity, With<BgmMusic>>) {
+    for entity in bgm_query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+/// Pause BGM
+pub fn pause_bgm(bgm_query: Query<&AudioSink, With<BgmMusic>>) {
+    for sink in bgm_query.iter() {
+        sink.pause();
+    }
+}
+
+/// Resume BGM
+pub fn resume_bgm(bgm_query: Query<&AudioSink, With<BgmMusic>>) {
+    for sink in bgm_query.iter() {
+        sink.play();
     }
 }

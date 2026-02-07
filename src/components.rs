@@ -50,3 +50,7 @@ pub struct GameOverUI;
 /// Level clear UI marker
 #[derive(Component)]
 pub struct LevelClearUI;
+
+/// BGM music marker component
+#[derive(Component)]
+pub struct BgmMusic;

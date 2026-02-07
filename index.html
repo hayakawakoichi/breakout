@@ -94,6 +94,13 @@
             font-size: 16px;
             margin: 0;
         }
+        .tap-hint {
+            color: #7099eb;
+            font-size: 14px;
+            margin: 0;
+            animation: blink 1.2s steps(1) infinite;
+            cursor: pointer;
+        }
         .dot {
             animation: blink 0.9s steps(1) infinite;
         }
@@ -124,6 +131,7 @@
             <span class="dot" style="animation-delay:0.3s">.</span>
             <span class="dot" style="animation-delay:0.6s">.</span>
         </p>
+        <p class="tap-hint" id="tap-hint">&#x266B; タップして BGM を再生</p>
     </div>
     <canvas id="bevy_canvas"></canvas>
     <script>
@@ -150,6 +158,93 @@
             document.addEventListener(e, resumeAudio, { capture: true })
         );
 
+        // ===== Loading Screen BGM (Web Audio API) =====
+        let loadingBgmCtx = null;
+        let loadingBgmGain = null;
+        let loadingBgmStarted = false;
+        let loadingBgmStopped = false;
+
+        function startLoadingBgm() {
+            if (loadingBgmStarted || loadingBgmStopped) return;
+            loadingBgmStarted = true;
+            const hint = document.getElementById('tap-hint');
+            if (hint) hint.style.display = 'none';
+
+            const ctx = new OrigAudioContext();
+            loadingBgmCtx = ctx;
+            loadingBgmGain = ctx.createGain();
+            loadingBgmGain.gain.value = 0.12;
+            loadingBgmGain.connect(ctx.destination);
+
+            // Chiptune melody: C major scale pattern, square wave
+            const BPM = 140;
+            const beat = 60.0 / BPM;
+            const melody = [
+                // note freq, duration in beats
+                [329.63, 0.5], [329.63, 0.25], [0, 0.25], [329.63, 0.5], [0, 0.25], [261.63, 0.25],
+                [329.63, 0.5], [392.00, 0.5], [0, 0.5], [196.00, 0.5],
+                [261.63, 0.75], [0, 0.25], [196.00, 0.75], [0, 0.25],
+                [164.81, 0.75], [0, 0.25], [220.00, 0.5], [246.94, 0.5],
+                [0, 0.25], [220.00, 0.5], [196.00, 0.5], [329.63, 0.5], [0, 0.25],
+                [392.00, 0.5], [440.00, 0.5], [349.23, 0.25], [392.00, 0.25], [0, 0.25], [329.63, 0.25],
+                [261.63, 0.5], [293.66, 0.25], [246.94, 0.25], [0, 0.5], [261.63, 0.5],
+                [196.00, 0.5], [0, 0.25], [164.81, 0.5], [0, 0.25], [130.81, 0.5],
+            ];
+
+            // Calculate total duration
+            let totalBeats = 0;
+            melody.forEach(n => totalBeats += n[1]);
+            const loopDuration = totalBeats * beat;
+
+            function scheduleLoop(startTime) {
+                let t = startTime;
+                melody.forEach(([freq, beats]) => {
+                    const dur = beats * beat;
+                    if (freq > 0) {
+                        const osc = ctx.createOscillator();
+                        osc.type = 'square';
+                        osc.frequency.value = freq;
+                        const noteGain = ctx.createGain();
+                        noteGain.gain.setValueAtTime(0, t);
+                        noteGain.gain.linearRampToValueAtTime(1, t + 0.005);
+                        noteGain.gain.setValueAtTime(1, t + dur - 0.02);
+                        noteGain.gain.linearRampToValueAtTime(0, t + dur);
+                        osc.connect(noteGain);
+                        noteGain.connect(loadingBgmGain);
+                        osc.start(t);
+                        osc.stop(t + dur);
+                    }
+                    t += dur;
+                });
+                return t;
+            }
+
+            // Schedule several loops ahead
+            let nextStart = ctx.currentTime;
+            for (let i = 0; i < 8; i++) {
+                nextStart = scheduleLoop(nextStart);
+            }
+        }
+
+        function stopLoadingBgm() {
+            if (loadingBgmStopped) return;
+            loadingBgmStopped = true;
+            if (loadingBgmCtx && loadingBgmGain) {
+                const now = loadingBgmCtx.currentTime;
+                loadingBgmGain.gain.setValueAtTime(loadingBgmGain.gain.value, now);
+                loadingBgmGain.gain.linearRampToValueAtTime(0, now + 0.5);
+                setTimeout(() => {
+                    loadingBgmCtx.close();
+                    loadingBgmCtx = null;
+                }, 600);
+            }
+        }
+
+        // Start BGM on user interaction
+        ["click", "touchstart", "keydown"].forEach(e =>
+            document.addEventListener(e, startLoadingBgm, { once: false, capture: true })
+        );
+
         // Auto-hide loading screen when Bevy canvas is ready
         const ls = document.getElementById('loading-screen');
         const cv = document.getElementById('bevy_canvas');
@@ -160,6 +255,7 @@
             const initH = cv.height;
             function checkBevyReady() {
                 if (cv.width !== initW || cv.height !== initH) {
+                    stopLoadingBgm();
                     setTimeout(() => ls.classList.add('hidden'), 200);
                     setTimeout(() => ls.remove(), 700);
                     return;

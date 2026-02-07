@@ -64,6 +64,7 @@ fn main() {
             OnEnter(GameState::Playing),
             (spawn_paddle, spawn_ball).run_if(any_with_component::<Block>),
         )
+        .add_systems(OnEnter(GameState::Playing), start_bgm)
         // UI scale (runs always)
         .add_systems(Update, update_ui_scale)
         // Playing state - update
@@ -85,16 +86,18 @@ fn main() {
         // Sound system runs in all states to catch game over / level clear events
         .add_systems(Update, play_collision_sounds)
         // Paused state
+        .add_systems(OnEnter(GameState::Paused), pause_bgm)
+        .add_systems(OnExit(GameState::Paused), resume_bgm)
         .add_systems(Update, pause_input.run_if(in_state(GameState::Paused)))
         // Game Over state
-        .add_systems(OnEnter(GameState::GameOver), setup_game_over)
+        .add_systems(OnEnter(GameState::GameOver), (setup_game_over, stop_bgm))
         .add_systems(OnExit(GameState::GameOver), (cleanup_game_over, reset_game))
         .add_systems(
             Update,
             restart_input.run_if(in_state(GameState::GameOver)),
         )
         // Level Clear state
-        .add_systems(OnEnter(GameState::LevelClear), setup_level_clear)
+        .add_systems(OnEnter(GameState::LevelClear), (setup_level_clear, stop_bgm))
         .add_systems(
             OnExit(GameState::LevelClear),
             (cleanup_level_clear, cleanup_for_next_level, advance_level),

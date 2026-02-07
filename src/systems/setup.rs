@@ -224,6 +224,7 @@ pub fn load_sounds(mut commands: Commands, asset_server: Res<AssetServer>) {
         break_block: asset_server.load_optional("sounds/break.wav"),
         game_over: asset_server.load_optional("sounds/gameover.wav"),
         level_up: asset_server.load_optional("sounds/levelup.wav"),
+        bgm: asset_server.load_optional("sounds/bgm.wav"),
     };
     commands.insert_resource(sounds);
 }
