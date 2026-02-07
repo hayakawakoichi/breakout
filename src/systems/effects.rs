@@ -66,3 +66,86 @@ fn rand_f32() -> f32 {
     let hash = n.wrapping_mul(1103515245).wrapping_add(12345);
     (hash & 0x7FFFFFFF) as f32 / 0x7FFFFFFF as f32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    #[test]
+    fn particle_despawns_after_lifetime() {
+        let mut app = test_app();
+        app.world_mut().spawn((
+            Sprite {
+                color: Color::WHITE,
+                custom_size: Some(Vec2::splat(4.0)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Particle {
+                lifetime: Timer::from_seconds(0.01, TimerMode::Once),
+                velocity: Vec2::new(100.0, 100.0),
+            },
+        ));
+
+        app.add_systems(Update, update_particles);
+        // Run enough updates for the short timer to expire
+        app.update();
+        app.update();
+
+        let count = app
+            .world_mut()
+            .query::<&Particle>()
+            .iter(app.world())
+            .count();
+        assert_eq!(count, 0, "Particle should be despawned after lifetime");
+    }
+
+    #[test]
+    fn screen_shake_trauma_decays() {
+        let mut app = test_app();
+        app.world_mut().resource_mut::<ScreenShake>().trauma = 1.0;
+        // Need a camera for the system
+        app.world_mut().spawn((Camera2d, Transform::default()));
+
+        app.add_systems(Update, apply_screen_shake);
+        app.update();
+
+        let shake = app.world().resource::<ScreenShake>();
+        assert!(shake.trauma < 1.0, "Trauma should decay over time");
+        assert!(shake.trauma > 0.0, "Trauma should not fully decay in one frame");
+    }
+
+    #[test]
+    fn trauma_not_below_zero() {
+        let mut app = test_app();
+        app.world_mut().resource_mut::<ScreenShake>().trauma = 0.001;
+        app.world_mut().spawn((Camera2d, Transform::default()));
+
+        app.add_systems(Update, apply_screen_shake);
+        app.update();
+
+        let shake = app.world().resource::<ScreenShake>();
+        assert!(shake.trauma >= 0.0, "Trauma should never go below 0");
+    }
+
+    #[test]
+    fn camera_resets_at_zero_trauma() {
+        let mut app = test_app();
+        app.world_mut().resource_mut::<ScreenShake>().trauma = 0.0;
+        let camera = app.world_mut().spawn((Camera2d, Transform::from_xyz(5.0, 5.0, 0.0))).id();
+
+        app.add_systems(Update, apply_screen_shake);
+        app.update();
+
+        let transform = app.world().entity(camera).get::<Transform>().unwrap();
+        assert!(
+            transform.translation.x.abs() < f32::EPSILON,
+            "Camera x should reset to 0"
+        );
+        assert!(
+            transform.translation.y.abs() < f32::EPSILON,
+            "Camera y should reset to 0"
+        );
+    }
+}

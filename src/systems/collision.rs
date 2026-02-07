@@ -432,3 +432,650 @@ pub fn check_level_clear(
         next_state.set(GameState::LevelClear);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    // --- aabb_collision unit tests ---
+
+    #[test]
+    fn aabb_collision_overlapping() {
+        assert!(aabb_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 10.0),
+            Vec2::new(5.0, 5.0),
+            Vec2::new(10.0, 10.0),
+        ));
+    }
+
+    #[test]
+    fn aabb_collision_non_overlapping() {
+        assert!(!aabb_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 10.0),
+            Vec2::new(20.0, 20.0),
+            Vec2::new(10.0, 10.0),
+        ));
+    }
+
+    #[test]
+    fn aabb_collision_touching_edge() {
+        // Touching edges: half_a.x + half_b.x == distance → not overlapping (strict <)
+        assert!(!aabb_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 10.0),
+            Vec2::new(10.0, 0.0),
+            Vec2::new(10.0, 10.0),
+        ));
+    }
+
+    #[test]
+    fn aabb_collision_contained() {
+        assert!(aabb_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(20.0, 20.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(2.0, 2.0),
+        ));
+    }
+
+    // --- simple_rand / rand_f32 ---
+
+    #[test]
+    fn simple_rand_range() {
+        for seed in 0..1000 {
+            let val = simple_rand(seed);
+            assert!(val >= 0.0 && val < 1.0, "seed {seed} produced {val}");
+        }
+    }
+
+    #[test]
+    fn simple_rand_deterministic() {
+        assert_eq!(simple_rand(42), simple_rand(42));
+        assert_eq!(simple_rand(0), simple_rand(0));
+    }
+
+    // --- ball_paddle_collision ---
+
+    /// Y position that ensures ball overlaps with paddle for AABB collision
+    fn ball_y_overlapping_paddle() -> f32 {
+        // Place ball just barely overlapping: paddle_center + half_paddle + half_ball - small_gap
+        PADDLE_Y + (PADDLE_HEIGHT + BALL_SIZE) / 2.0 - 2.0
+    }
+
+    #[test]
+    fn ball_bounces_off_paddle_center() {
+        let mut app = test_app();
+        spawn_test_paddle(app.world_mut(), 0.0);
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, ball_y_overlapping_paddle()),
+            Vec2::new(0.0, -BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_paddle_collision);
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(ball_vel.0.y > 0.0, "Ball should bounce upward");
+    }
+
+    #[test]
+    fn ball_no_bounce_when_moving_up() {
+        let mut app = test_app();
+        spawn_test_paddle(app.world_mut(), 0.0);
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, ball_y_overlapping_paddle()),
+            Vec2::new(0.0, BALL_SPEED), // Moving upward
+        );
+
+        app.add_systems(Update, ball_paddle_collision);
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(
+            ball_vel.0.y > 0.0,
+            "Ball moving up should not be affected"
+        );
+    }
+
+    #[test]
+    fn ball_angle_from_paddle_hit_pos() {
+        let mut app = test_app();
+        spawn_test_paddle(app.world_mut(), 0.0);
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(30.0, ball_y_overlapping_paddle()),
+            Vec2::new(0.0, -BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_paddle_collision);
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(ball_vel.0.x > 0.0, "Hit right side → positive x velocity");
+    }
+
+    #[test]
+    fn ball_speed_preserved_after_paddle() {
+        let mut app = test_app();
+        spawn_test_paddle(app.world_mut(), 0.0);
+        let initial_speed = BALL_SPEED;
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(10.0, ball_y_overlapping_paddle()),
+            Vec2::new(0.0, -initial_speed),
+        );
+
+        app.add_systems(Update, ball_paddle_collision);
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        let speed_after = ball_vel.0.length();
+        assert!(
+            (speed_after - initial_speed).abs() < 1.0,
+            "Speed should be preserved: {speed_after} vs {initial_speed}"
+        );
+    }
+
+    // --- ball_wall_collision ---
+
+    #[test]
+    fn ball_bounces_off_top_wall() {
+        let mut app = test_app();
+        let wall_y = WINDOW_HEIGHT / 2.0;
+        spawn_test_wall(
+            app.world_mut(),
+            Wall::Top,
+            Vec2::new(0.0, wall_y),
+            Vec2::new(WINDOW_WIDTH, WALL_THICKNESS),
+        );
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, wall_y - WALL_THICKNESS),
+            Vec2::new(100.0, BALL_SPEED),
+        );
+
+        app.add_systems(
+            Update,
+            ball_wall_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(ball_vel.0.y < 0.0, "Ball should bounce downward off top wall");
+    }
+
+    #[test]
+    fn ball_bounces_off_left_wall() {
+        let mut app = test_app();
+        let wall_x = -WINDOW_WIDTH / 2.0;
+        spawn_test_wall(
+            app.world_mut(),
+            Wall::Left,
+            Vec2::new(wall_x, 0.0),
+            Vec2::new(WALL_THICKNESS, WINDOW_HEIGHT),
+        );
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(wall_x + WALL_THICKNESS, 0.0),
+            Vec2::new(-BALL_SPEED, 100.0),
+        );
+
+        app.add_systems(
+            Update,
+            ball_wall_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(ball_vel.0.x > 0.0, "Ball should bounce right off left wall");
+    }
+
+    #[test]
+    fn ball_bounces_off_right_wall() {
+        let mut app = test_app();
+        let wall_x = WINDOW_WIDTH / 2.0;
+        spawn_test_wall(
+            app.world_mut(),
+            Wall::Right,
+            Vec2::new(wall_x, 0.0),
+            Vec2::new(WALL_THICKNESS, WINDOW_HEIGHT),
+        );
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(wall_x - WALL_THICKNESS, 0.0),
+            Vec2::new(BALL_SPEED, 100.0),
+        );
+
+        app.add_systems(
+            Update,
+            ball_wall_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(ball_vel.0.x < 0.0, "Ball should bounce left off right wall");
+    }
+
+    #[test]
+    fn ball_despawn_on_bottom_game_over() {
+        let mut app = test_app();
+        // Place ball below the bottom limit
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, -WINDOW_HEIGHT / 2.0 - 10.0),
+            Vec2::new(0.0, -BALL_SPEED),
+        );
+
+        app.add_systems(
+            Update,
+            ball_wall_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let ball_count = app
+            .world_mut()
+            .query::<&Ball>()
+            .iter(app.world())
+            .count();
+        assert_eq!(ball_count, 0, "Ball should be despawned");
+
+        let events = app.world().resource::<CollectedEvents>();
+        assert!(events.events.contains(&CollisionEvent::GameOver));
+    }
+
+    #[test]
+    fn multi_ball_one_lost_no_game_over() {
+        let mut app = test_app();
+        // Ball 1: below bottom (will be lost)
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, -WINDOW_HEIGHT / 2.0 - 10.0),
+            Vec2::new(0.0, -BALL_SPEED),
+        );
+        // Ball 2: safe position
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(BALL_SPEED, BALL_SPEED),
+        );
+
+        app.add_systems(
+            Update,
+            ball_wall_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let ball_count = app
+            .world_mut()
+            .query::<&Ball>()
+            .iter(app.world())
+            .count();
+        assert_eq!(ball_count, 1, "One ball should remain");
+
+        let events = app.world().resource::<CollectedEvents>();
+        assert!(
+            !events.events.contains(&CollisionEvent::GameOver),
+            "Should not game over with remaining balls"
+        );
+    }
+
+    // --- ball_block_collision ---
+
+    #[test]
+    fn block_hit_adds_score_with_combo() {
+        let mut app = test_app();
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        // Ball overlapping the block, moving upward
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, (ball_block_collision, collect_collision_events));
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let score = app.world().resource::<Score>();
+        // First hit: combo count becomes 1, score = SCORE_PER_BLOCK * 1 = 10
+        assert_eq!(score.value, SCORE_PER_BLOCK);
+    }
+
+    #[test]
+    fn block_hit_reverses_velocity() {
+        let mut app = test_app();
+        // Ball approaching block from below (y_overlap < x_overlap → reverse y)
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        let initial_vy = BALL_SPEED;
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0 - BLOCK_HEIGHT / 2.0 - BALL_SIZE / 2.0 + 2.0),
+            Vec2::new(0.0, initial_vy),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(
+            ball_vel.0.y < 0.0,
+            "y velocity should reverse after block hit"
+        );
+    }
+
+    #[test]
+    fn block_hit_triggers_screen_shake() {
+        let mut app = test_app();
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let shake = app.world().resource::<ScreenShake>();
+        assert!(shake.trauma > 0.0, "Screen shake should be triggered");
+    }
+
+    #[test]
+    fn one_block_per_ball_per_frame() {
+        let mut app = test_app();
+        // Two blocks close together
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0 + BLOCK_HEIGHT + 1.0));
+        // Ball overlapping both
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0 + BLOCK_HEIGHT / 2.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        // At most 1 block should be destroyed per ball per frame
+        assert!(
+            block_count >= 1,
+            "At most one block destroyed per ball per frame"
+        );
+    }
+
+    // --- Special block types ---
+
+    #[test]
+    fn steel_block_reflects_but_survives() {
+        let mut app = test_app();
+        spawn_test_block_typed(app.world_mut(), Vec2::new(0.0, 100.0), BlockType::Steel);
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0 - BLOCK_HEIGHT / 2.0 - BALL_SIZE / 2.0 + 2.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(
+            Update,
+            ball_block_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        // Steel block should still exist
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        assert_eq!(block_count, 1, "Steel block should survive");
+
+        // Score should not increase
+        let score = app.world().resource::<Score>();
+        assert_eq!(score.value, 0, "Steel blocks give no score");
+
+        // Should emit Wall event (not Block)
+        let events = app.world().resource::<CollectedEvents>();
+        assert!(events.events.contains(&CollisionEvent::Wall));
+        assert!(!events.events.contains(&CollisionEvent::Block));
+    }
+
+    #[test]
+    fn durable_block_loses_hit() {
+        let mut app = test_app();
+        spawn_test_block_typed(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            BlockType::Durable { hits_remaining: 3 },
+        );
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0 - BLOCK_HEIGHT / 2.0 - BALL_SIZE / 2.0 + 2.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        // Block should still exist with reduced hits
+        let block = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert_eq!(
+            block.block_type,
+            BlockType::Durable { hits_remaining: 2 },
+            "Hits should decrease by 1"
+        );
+
+        // Score should not increase (not destroyed yet)
+        let score = app.world().resource::<Score>();
+        assert_eq!(score.value, 0);
+    }
+
+    #[test]
+    fn durable_block_destroyed_at_one_hit() {
+        let mut app = test_app();
+        spawn_test_block_typed(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            BlockType::Durable { hits_remaining: 1 },
+        );
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        assert_eq!(block_count, 0, "Durable block at 1 hit should be destroyed");
+
+        // Should get score with durable bonus
+        let score = app.world().resource::<Score>();
+        assert_eq!(
+            score.value,
+            SCORE_PER_BLOCK + DURABLE_SCORE_BONUS,
+            "Durable destruction gives bonus"
+        );
+    }
+
+    #[test]
+    fn explosive_block_chain_destroys_nearby() {
+        let mut app = test_app();
+        // Explosive block at origin
+        spawn_test_block_typed(app.world_mut(), Vec2::new(0.0, 100.0), BlockType::Explosive);
+        // Normal block within explosion radius
+        spawn_test_block(app.world_mut(), Vec2::new(50.0, 100.0));
+        // Normal block outside explosion radius
+        spawn_test_block(app.world_mut(), Vec2::new(300.0, 100.0));
+
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        // Explosive + nearby normal destroyed, far normal survives
+        assert_eq!(
+            block_count, 1,
+            "Only the far block should survive the explosion"
+        );
+    }
+
+    #[test]
+    fn combo_scoring_increments() {
+        let mut app = test_app();
+        // Two blocks at different positions
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let combo = app.world().resource::<ComboTracker>();
+        assert_eq!(combo.count, 1, "Combo count should be 1 after first hit");
+        assert_eq!(combo.last_score_gained, SCORE_PER_BLOCK);
+    }
+
+    // --- check_level_clear ---
+
+    #[test]
+    fn level_clear_when_no_blocks() {
+        let mut app = test_app();
+        // No blocks at all
+        app.add_systems(
+            Update,
+            check_level_clear.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let events = app.world().resource::<CollectedEvents>();
+        assert!(events.events.contains(&CollisionEvent::LevelClear));
+    }
+
+    #[test]
+    fn no_level_clear_with_blocks() {
+        let mut app = test_app();
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+
+        app.add_systems(
+            Update,
+            check_level_clear.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let events = app.world().resource::<CollectedEvents>();
+        assert!(
+            !events.events.contains(&CollisionEvent::LevelClear),
+            "Should not clear level with remaining blocks"
+        );
+    }
+
+    #[test]
+    fn level_clear_ignores_steel_blocks() {
+        let mut app = test_app();
+        // Only steel blocks remain
+        spawn_test_block_typed(app.world_mut(), Vec2::new(0.0, 100.0), BlockType::Steel);
+        spawn_test_block_typed(app.world_mut(), Vec2::new(100.0, 100.0), BlockType::Steel);
+
+        app.add_systems(
+            Update,
+            check_level_clear.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        let events = app.world().resource::<CollectedEvents>();
+        assert!(
+            events.events.contains(&CollisionEvent::LevelClear),
+            "Steel-only should trigger level clear"
+        );
+    }
+}

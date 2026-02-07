@@ -5,7 +5,7 @@ use crate::components::BgmMusic;
 use crate::resources::*;
 
 /// Collision event types for sound playback
-#[derive(Event)]
+#[derive(Event, Clone, Debug, PartialEq)]
 pub enum CollisionEvent {
     Paddle,
     Wall,
