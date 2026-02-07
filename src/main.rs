@@ -8,7 +8,7 @@ mod resources;
 mod states;
 mod systems;
 
-use components::Block;
+use components::{Block, BgmMusic, Paddle};
 use constants::*;
 use resources::*;
 use states::GameState;
@@ -62,9 +62,13 @@ fn main() {
         )
         .add_systems(
             OnEnter(GameState::Playing),
-            (spawn_paddle, spawn_ball).run_if(any_with_component::<Block>),
+            (spawn_paddle, spawn_ball)
+                .run_if(any_with_component::<Block>.and(not(any_with_component::<Paddle>))),
         )
-        .add_systems(OnEnter(GameState::Playing), start_bgm)
+        .add_systems(
+            OnEnter(GameState::Playing),
+            start_bgm.run_if(not(any_with_component::<BgmMusic>)),
+        )
         // UI scale (runs always)
         .add_systems(Update, update_ui_scale)
         // Playing state - update
