@@ -79,10 +79,11 @@ fn main() {
                 check_level_clear,
                 update_score_text,
                 update_level_text,
-                play_collision_sounds,
             )
                 .run_if(in_state(GameState::Playing)),
         )
+        // Sound system runs in all states to catch game over / level clear events
+        .add_systems(Update, play_collision_sounds)
         // Paused state
         .add_systems(Update, pause_input.run_if(in_state(GameState::Paused)))
         // Game Over state
