@@ -19,6 +19,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "multi_threaded",
     "wav",
     "webgl2",
+    "x11",
 ] }
 
 [target.wasm32-unknown-unknown.dependencies]

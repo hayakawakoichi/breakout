@@ -8,6 +8,9 @@ mod resources;
 mod states;
 mod systems;
 
+#[cfg(test)]
+mod test_helpers;
+
 use components::{Block, BgmMusic, Paddle};
 use constants::*;
 use resources::*;

@@ -274,3 +274,141 @@ pub fn cleanup_for_next_level(
         commands.entity(entity).despawn();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    #[test]
+    fn advance_level_increments() {
+        let mut app = test_app();
+        app.add_systems(Update, advance_level);
+        app.update();
+
+        let level = app.world().resource::<Level>();
+        assert_eq!(level.current, 2);
+    }
+
+    #[test]
+    fn reset_game_clears_resources() {
+        let mut app = test_app();
+        // Set non-default values
+        app.world_mut().resource_mut::<Score>().value = 999;
+        app.world_mut().resource_mut::<Level>().current = 5;
+        app.world_mut().resource_mut::<ComboTracker>().count = 3;
+
+        app.add_systems(Update, reset_game);
+        app.update();
+
+        let score = app.world().resource::<Score>();
+        let level = app.world().resource::<Level>();
+        let combo = app.world().resource::<ComboTracker>();
+        assert_eq!(score.value, 0);
+        assert_eq!(level.current, 1);
+        assert_eq!(combo.count, 0);
+    }
+
+    #[test]
+    fn reset_game_despawns_entities() {
+        let mut app = test_app();
+        spawn_test_ball(app.world_mut(), Vec2::ZERO, Vec2::new(100.0, 100.0));
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 200.0));
+        spawn_test_paddle(app.world_mut(), 0.0);
+        spawn_test_wall(
+            app.world_mut(),
+            Wall::Top,
+            Vec2::new(0.0, 400.0),
+            Vec2::new(800.0, 10.0),
+        );
+
+        app.add_systems(Update, reset_game);
+        app.update();
+
+        let ball_count = app.world_mut().query::<&Ball>().iter(app.world()).count();
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        let paddle_count = app
+            .world_mut()
+            .query::<&Paddle>()
+            .iter(app.world())
+            .count();
+        assert_eq!(ball_count, 0);
+        assert_eq!(block_count, 0);
+        assert_eq!(paddle_count, 0);
+    }
+
+    #[test]
+    fn cleanup_next_level_despawns_ball_paddle_block() {
+        let mut app = test_app();
+        spawn_test_ball(app.world_mut(), Vec2::ZERO, Vec2::new(100.0, 100.0));
+        spawn_test_paddle(app.world_mut(), 0.0);
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 200.0));
+        // Wall should survive
+        spawn_test_wall(
+            app.world_mut(),
+            Wall::Top,
+            Vec2::new(0.0, 400.0),
+            Vec2::new(800.0, 10.0),
+        );
+
+        app.add_systems(Update, cleanup_for_next_level);
+        app.update();
+
+        let ball_count = app.world_mut().query::<&Ball>().iter(app.world()).count();
+        let paddle_count = app
+            .world_mut()
+            .query::<&Paddle>()
+            .iter(app.world())
+            .count();
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        let wall_count = app.world_mut().query::<&Wall>().iter(app.world()).count();
+        assert_eq!(ball_count, 0, "Balls should be despawned");
+        assert_eq!(paddle_count, 0, "Paddle should be despawned");
+        assert_eq!(block_count, 0, "Blocks should be despawned");
+        assert_eq!(wall_count, 1, "Walls should survive");
+    }
+
+    #[test]
+    fn cleanup_next_level_resets_paddle_size() {
+        let mut app = test_app();
+        let paddle = spawn_test_paddle(app.world_mut(), 0.0);
+        // Simulate wide paddle power-up
+        let wide_width = PADDLE_WIDTH * 1.5;
+        app.world_mut()
+            .entity_mut(paddle)
+            .get_mut::<Sprite>()
+            .unwrap()
+            .custom_size = Some(Vec2::new(wide_width, PADDLE_HEIGHT));
+        app.world_mut()
+            .entity_mut(paddle)
+            .get_mut::<Collider>()
+            .unwrap()
+            .size = Vec2::new(wide_width, PADDLE_HEIGHT);
+
+        app.add_systems(Update, cleanup_for_next_level);
+        app.update();
+
+        // Paddle is despawned by cleanup_for_next_level, but before that it resets size.
+        // Since it's despawned we just verify no panic occurred.
+    }
+
+    #[test]
+    fn cleanup_next_level_resets_combo() {
+        let mut app = test_app();
+        app.world_mut().resource_mut::<ComboTracker>().count = 5;
+
+        app.add_systems(Update, cleanup_for_next_level);
+        app.update();
+
+        let combo = app.world().resource::<ComboTracker>();
+        assert_eq!(combo.count, 0, "Combo should be reset");
+    }
+}

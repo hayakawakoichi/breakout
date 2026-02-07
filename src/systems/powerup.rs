@@ -270,3 +270,218 @@ fn aabb_collision(pos_a: Vec2, size_a: Vec2, pos_b: Vec2, size_b: Vec2) -> bool 
         && pos_a.y - half_a.y < pos_b.y + half_b.y
         && pos_a.y + half_a.y > pos_b.y - half_b.y
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::*;
+
+    #[test]
+    fn powerup_falls_down() {
+        let mut app = test_app();
+        let powerup = app
+            .world_mut()
+            .spawn((
+                Sprite {
+                    custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                    ..default()
+                },
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                PowerUp {
+                    power_type: PowerUpType::WidePaddle,
+                },
+                Velocity(Vec2::new(0.0, -POWERUP_FALL_SPEED)),
+                Collider {
+                    size: Vec2::splat(POWERUP_SIZE),
+                },
+            ))
+            .id();
+
+        app.add_systems(Update, powerup_movement);
+        app.update();
+
+        let transform = app.world().entity(powerup).get::<Transform>().unwrap();
+        assert!(transform.translation.y < 0.0, "Power-up should fall down");
+    }
+
+    #[test]
+    fn powerup_despawns_below_screen() {
+        let mut app = test_app();
+        app.world_mut().spawn((
+            Sprite {
+                custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, -WINDOW_HEIGHT / 2.0 - 1.0, 0.0),
+            PowerUp {
+                power_type: PowerUpType::MultiBall,
+            },
+            Velocity(Vec2::new(0.0, -POWERUP_FALL_SPEED)),
+            Collider {
+                size: Vec2::splat(POWERUP_SIZE),
+            },
+        ));
+
+        app.add_systems(Update, powerup_movement);
+        app.update();
+
+        let count = app
+            .world_mut()
+            .query::<&PowerUp>()
+            .iter(app.world())
+            .count();
+        assert_eq!(count, 0, "Power-up below screen should be despawned");
+    }
+
+    #[test]
+    fn wide_paddle_widens() {
+        let mut app = test_app();
+        let paddle = spawn_test_paddle(app.world_mut(), 0.0);
+        // Spawn power-up overlapping paddle
+        app.world_mut().spawn((
+            Sprite {
+                custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+            PowerUp {
+                power_type: PowerUpType::WidePaddle,
+            },
+            Collider {
+                size: Vec2::splat(POWERUP_SIZE),
+            },
+        ));
+        // Need a ball for the system query
+        spawn_test_ball(app.world_mut(), Vec2::new(0.0, 0.0), Vec2::new(0.0, BALL_SPEED));
+
+        app.add_systems(Update, paddle_powerup_collision);
+        app.update();
+
+        let sprite = app.world().entity(paddle).get::<Sprite>().unwrap();
+        let expected_width = PADDLE_WIDTH * WIDE_PADDLE_MULTIPLIER;
+        assert_eq!(
+            sprite.custom_size,
+            Some(Vec2::new(expected_width, PADDLE_HEIGHT)),
+            "Paddle should be widened"
+        );
+    }
+
+    #[test]
+    fn multi_ball_spawns_two() {
+        let mut app = test_app();
+        spawn_test_paddle(app.world_mut(), 0.0);
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+        // Spawn MultiBall power-up overlapping paddle
+        app.world_mut().spawn((
+            Sprite {
+                custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+            PowerUp {
+                power_type: PowerUpType::MultiBall,
+            },
+            Collider {
+                size: Vec2::splat(POWERUP_SIZE),
+            },
+        ));
+
+        app.add_systems(Update, paddle_powerup_collision);
+        app.update();
+
+        let ball_count = app
+            .world_mut()
+            .query::<&Ball>()
+            .iter(app.world())
+            .count();
+        assert_eq!(ball_count, 3, "Should have 1 original + 2 extra balls");
+    }
+
+    #[test]
+    fn slow_ball_reduces_speed() {
+        let mut app = test_app();
+        spawn_test_paddle(app.world_mut(), 0.0);
+        let ball = spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+        app.world_mut().spawn((
+            Sprite {
+                custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+            PowerUp {
+                power_type: PowerUpType::SlowBall,
+            },
+            Collider {
+                size: Vec2::splat(POWERUP_SIZE),
+            },
+        ));
+
+        app.add_systems(Update, paddle_powerup_collision);
+        app.update();
+
+        let vel = app.world().entity(ball).get::<Velocity>().unwrap();
+        let expected_speed = BALL_SPEED * SLOW_BALL_MULTIPLIER;
+        assert!(
+            (vel.0.length() - expected_speed).abs() < 1.0,
+            "Ball speed should be reduced: {} vs {}",
+            vel.0.length(),
+            expected_speed,
+        );
+    }
+
+    #[test]
+    fn powerup_effects_created() {
+        let mut app = test_app();
+        let paddle = spawn_test_paddle(app.world_mut(), 0.0);
+        app.world_mut().spawn((
+            Sprite {
+                custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+            PowerUp {
+                power_type: PowerUpType::WidePaddle,
+            },
+            Collider {
+                size: Vec2::splat(POWERUP_SIZE),
+            },
+        ));
+        spawn_test_ball(app.world_mut(), Vec2::new(0.0, 0.0), Vec2::new(0.0, BALL_SPEED));
+
+        app.add_systems(Update, paddle_powerup_collision);
+        app.update();
+        // Apply commands
+        app.update();
+
+        let effects = app.world().entity(paddle).get::<PowerUpEffects>();
+        assert!(effects.is_some(), "PowerUpEffects should be added to paddle");
+        let effects = effects.unwrap();
+        assert_eq!(effects.effects.len(), 1);
+        assert_eq!(effects.effects[0].effect_type, PowerUpType::WidePaddle);
+    }
+
+    #[test]
+    fn powerup_aabb_collision_works() {
+        assert!(aabb_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(20.0, 20.0),
+            Vec2::new(5.0, 5.0),
+            Vec2::new(20.0, 20.0),
+        ));
+
+        assert!(!aabb_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 10.0),
+            Vec2::new(100.0, 100.0),
+            Vec2::new(10.0, 10.0),
+        ));
+    }
+}

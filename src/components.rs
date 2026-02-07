@@ -13,7 +13,7 @@ pub struct Ball;
 pub struct Velocity(pub Vec2);
 
 /// Block type variants
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BlockType {
     Normal,
     Durable { hits_remaining: u32 },
@@ -80,7 +80,7 @@ pub struct Particle {
 }
 
 /// Power-up item types
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PowerUpType {
     WidePaddle,
     MultiBall,
