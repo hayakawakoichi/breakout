@@ -154,13 +154,19 @@
         const ls = document.getElementById('loading-screen');
         const cv = document.getElementById('bevy_canvas');
         if (ls && cv) {
-            new ResizeObserver((entries, obs) => {
-                if (entries[0].contentRect.width > 100) {
-                    setTimeout(() => ls.classList.add('hidden'), 100);
-                    setTimeout(() => ls.remove(), 500);
-                    obs.disconnect();
+            // Bevy changes the canvas buffer dimensions from the default (300x150)
+            // when it initializes the renderer. Poll for this change.
+            const initW = cv.width;
+            const initH = cv.height;
+            function checkBevyReady() {
+                if (cv.width !== initW || cv.height !== initH) {
+                    setTimeout(() => ls.classList.add('hidden'), 200);
+                    setTimeout(() => ls.remove(), 700);
+                    return;
                 }
-            }).observe(cv);
+                requestAnimationFrame(checkBevyReady);
+            }
+            requestAnimationFrame(checkBevyReady);
         }
     </script>
 </body>
