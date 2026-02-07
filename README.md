@@ -22,6 +22,20 @@ cargo run
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
 
+## WASM ビルド (ブラウザで遊ぶ)
+
+```bash
+# 事前準備 (初回のみ)
+rustup target add wasm32-unknown-unknown
+cargo install trunk
+
+# 開発サーバー起動 (localhost:8080)
+trunk serve
+
+# 本番ビルド (dist/ に出力)
+trunk build --release
+```
+
 ## 操作方法
 
 | キー      | 操作                                 |

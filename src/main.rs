@@ -1,3 +1,4 @@
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 
 mod components;
@@ -16,15 +17,25 @@ use systems::*;
 fn main() {
     App::new()
         // Window configuration
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "ブロック崩し".to_string(),
-                resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
-                resizable: false,
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "ブロック崩し".to_string(),
+                        resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
+                        resizable: false,
+                        canvas: Some("#bevy_canvas".to_string()),
+                        fit_canvas_to_parent: true,
+                        prevent_default_event_handling: false,
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    meta_check: AssetMetaCheck::Never,
+                    ..default()
+                }),
+        )
         // Background color (dark navy)
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)))
         // Initialize resources

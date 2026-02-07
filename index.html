@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ブロック崩し</title>
+    <link data-trunk rel="rust" data-wasm-opt="z" />
+    <link data-trunk rel="copy-dir" href="assets" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d0d1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bevy_canvas"></canvas>
+    <script>
+        // Capture AudioContext instances created by cpal/Bevy before user gesture
+        const audioContexts = [];
+        const OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+        if (OrigAudioContext) {
+            window.AudioContext = function(...args) {
+                const ctx = new OrigAudioContext(...args);
+                audioContexts.push(ctx);
+                return ctx;
+            };
+            window.AudioContext.prototype = OrigAudioContext.prototype;
+        }
+        // Resume all suspended AudioContexts on first user interaction
+        function resumeAudio() {
+            audioContexts.forEach(ctx => {
+                if (ctx.state === "suspended") ctx.resume();
+            });
+            document.removeEventListener("click", resumeAudio);
+            document.removeEventListener("keydown", resumeAudio);
+            document.removeEventListener("touchstart", resumeAudio);
+        }
+        document.addEventListener("click", resumeAudio);
+        document.addEventListener("keydown", resumeAudio);
+        document.addEventListener("touchstart", resumeAudio);
+    </script>
+</body>
+</html>

@@ -1,5 +1,8 @@
 # Rust build artifacts
 /target/
+
+# Trunk WASM build output
+/dist/
 **/*.rs.bk
 
 # IDE / Editor

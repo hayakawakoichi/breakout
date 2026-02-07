@@ -6,9 +6,19 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.15", features = ["wav"] }
 
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
 # Enable fast compiles in dev mode
 [profile.dev]
 opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# WASM release optimizations
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "thin"
+strip = "debuginfo"
