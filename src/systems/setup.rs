@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
+ use bevy::text::FontSmoothing;
 
 use crate::components::*;
 use crate::constants::*;
@@ -16,6 +17,7 @@ pub fn setup_camera(mut commands: Commands) {
             },
             ..OrthographicProjection::default_2d()
         },
+        Msaa::Off,
     ));
 }
 
@@ -36,7 +38,7 @@ pub fn update_ui_scale(
 pub fn spawn_paddle(mut commands: Commands) {
     commands.spawn((
         Sprite {
-            color: Color::srgb(0.0, 0.85, 1.0),
+            color: Color::srgb(0.95, 0.85, 0.65), // Cream
             custom_size: Some(Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT)),
             ..default()
         },
@@ -55,7 +57,7 @@ pub fn spawn_ball(mut commands: Commands, level: Res<Level>) {
 
     commands.spawn((
         Sprite {
-            color: Color::WHITE,
+            color: Color::srgb(1.0, 0.96, 0.88), // Warm white
             custom_size: Some(Vec2::new(BALL_SIZE, BALL_SIZE)),
             ..default()
         },
@@ -71,11 +73,11 @@ pub fn spawn_ball(mut commands: Commands, level: Res<Level>) {
 /// Spawn blocks in a grid pattern
 pub fn spawn_blocks(mut commands: Commands) {
     let colors = [
-        Color::srgb(1.0, 0.1, 0.3),  // Neon Red
-        Color::srgb(1.0, 0.0, 0.6),  // Neon Magenta
-        Color::srgb(0.6, 0.0, 1.0),  // Neon Purple
-        Color::srgb(0.0, 0.8, 1.0),  // Neon Cyan
-        Color::srgb(0.0, 1.0, 0.5),  // Neon Green
+        Color::srgb(0.92, 0.44, 0.44), // Coral
+        Color::srgb(0.95, 0.60, 0.35), // Orange
+        Color::srgb(0.95, 0.85, 0.40), // Yellow
+        Color::srgb(0.40, 0.80, 0.52), // Green
+        Color::srgb(0.44, 0.60, 0.92), // Blue
     ];
 
     let total_width = BLOCK_COLS as f32 * (BLOCK_WIDTH + BLOCK_GAP) - BLOCK_GAP;
@@ -104,7 +106,7 @@ pub fn spawn_blocks(mut commands: Commands) {
 
 /// Spawn walls around the play area
 pub fn spawn_walls(mut commands: Commands) {
-    let wall_color = Color::srgb(0.15, 0.15, 0.25);
+    let wall_color = Color::srgb(0.22, 0.20, 0.32);
 
     // Top wall
     commands.spawn((
@@ -165,7 +167,7 @@ pub fn spawn_walls(mut commands: Commands) {
 
 /// Spawn score and level UI
 pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let cyan = Color::srgb(0.0, 0.9, 1.0);
+    let warm_white = Color::srgb(1.0, 0.96, 0.88);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     // HUD bar background
@@ -176,17 +178,17 @@ pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         width: Val::Percent(100.0),
         height: Val::Px(45.0),
         ..default()
-    }).insert(BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.5)));
+    }).insert(BackgroundColor(Color::srgba(0.07, 0.07, 0.16, 0.8)));
 
     // Score text
     commands.spawn((
         Text::new("スコア 0"),
         TextFont {
             font: font_handle.clone(),
-            font_size: 28.0,
-            ..default()
+            font_size: 24.0,
+            font_smoothing: FontSmoothing::None,
         },
-        TextColor(cyan),
+        TextColor(warm_white),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(8.0),
@@ -201,10 +203,10 @@ pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         Text::new("レベル 1"),
         TextFont {
             font: font_handle,
-            font_size: 28.0,
-            ..default()
+            font_size: 24.0,
+            font_smoothing: FontSmoothing::None,
         },
-        TextColor(cyan),
+        TextColor(warm_white),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(8.0),

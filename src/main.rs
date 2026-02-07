@@ -1,5 +1,6 @@
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
+use bevy::render::texture::ImagePlugin;
 
 mod components;
 mod constants;
@@ -34,10 +35,11 @@ fn main() {
                 .set(AssetPlugin {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
-                }),
+                })
+                .set(ImagePlugin::default_nearest()),
         )
-        // Background color (dark navy)
-        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)))
+        // Background color (retro dark indigo)
+        .insert_resource(ClearColor(Color::srgb(0.07, 0.07, 0.16)))
         // Initialize resources
         .init_resource::<Score>()
         .init_resource::<Level>()

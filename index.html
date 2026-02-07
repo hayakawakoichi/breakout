@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>ブロック崩し</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet" />
     <link data-trunk rel="rust" data-wasm-opt="z" />
     <link data-trunk rel="copy-dir" href="assets" />
     <style>
@@ -13,7 +16,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0d0d1e;
+            background-color: #12122a;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -22,9 +25,106 @@
             display: block;
             touch-action: none;
         }
+
+        /* Loading screen */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background-color: #12122a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+            font-family: 'DotGothic16', monospace;
+            transition: opacity 0.4s ease;
+            image-rendering: pixelated;
+        }
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Pixel scene */
+        .pixel-scene {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .pixel-blocks {
+            display: flex;
+            gap: 4px;
+        }
+        .pb {
+            display: block;
+            width: 32px;
+            height: 14px;
+            border-radius: 2px;
+        }
+        .pixel-ball {
+            width: 10px;
+            height: 10px;
+            background: #fff5e0;
+            border-radius: 1px;
+            animation: bounce-ball 1.2s ease-in-out infinite;
+        }
+        .pixel-paddle {
+            width: 56px;
+            height: 10px;
+            background: #f2d9a6;
+            border-radius: 2px;
+        }
+
+        @keyframes bounce-ball {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-24px); }
+        }
+
+        /* Loading text */
+        .loading-title {
+            color: #fff5e0;
+            font-size: 32px;
+            margin: 0;
+            letter-spacing: 4px;
+        }
+        .loading-text {
+            color: #f2d9a6;
+            font-size: 16px;
+            margin: 0;
+        }
+        .dot {
+            animation: blink 0.9s steps(1) infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
     </style>
 </head>
 <body>
+    <div id="loading-screen">
+        <div class="pixel-scene">
+            <div class="pixel-blocks">
+                <span class="pb" style="background:#eb7070"></span>
+                <span class="pb" style="background:#f29959"></span>
+                <span class="pb" style="background:#f2d964"></span>
+                <span class="pb" style="background:#66cc85"></span>
+                <span class="pb" style="background:#7099eb"></span>
+                <span class="pb" style="background:#f29959"></span>
+                <span class="pb" style="background:#eb7070"></span>
+            </div>
+            <div class="pixel-ball"></div>
+            <div class="pixel-paddle"></div>
+        </div>
+        <p class="loading-title">ブロック崩し</p>
+        <p class="loading-text">Now Loading
+            <span class="dot" style="animation-delay:0s">.</span>
+            <span class="dot" style="animation-delay:0.3s">.</span>
+            <span class="dot" style="animation-delay:0.6s">.</span>
+        </p>
+    </div>
     <canvas id="bevy_canvas"></canvas>
     <script>
         // Capture AudioContext instances created by cpal/Bevy
@@ -49,6 +149,19 @@
         ["click", "touchstart", "touchend", "keydown"].forEach(e =>
             document.addEventListener(e, resumeAudio, { capture: true })
         );
+
+        // Auto-hide loading screen when Bevy canvas is ready
+        const ls = document.getElementById('loading-screen');
+        const cv = document.getElementById('bevy_canvas');
+        if (ls && cv) {
+            new ResizeObserver((entries, obs) => {
+                if (entries[0].contentRect.width > 100) {
+                    setTimeout(() => ls.classList.add('hidden'), 100);
+                    setTimeout(() => ls.remove(), 500);
+                    obs.disconnect();
+                }
+            }).observe(cv);
+        }
     </script>
 </body>
 </html>

@@ -26,7 +26,7 @@ impl Level {
 }
 
 /// Font path constant
-pub const GAME_FONT_PATH: &str = "fonts/NotoSansJP-Bold.ttf";
+pub const GAME_FONT_PATH: &str = "fonts/DotGothic16-Regular.ttf";
 
 /// Sound handles resource
 #[derive(Resource, Default)]

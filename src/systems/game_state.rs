@@ -1,11 +1,14 @@
 use bevy::prelude::*;
+use bevy::text::FontSmoothing;
 
 use crate::components::*;
 use crate::resources::*;
 
 /// Setup menu screen
 pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let cyan = Color::srgb(0.0, 0.9, 1.0);
+    let warm_white = Color::srgb(1.0, 0.96, 0.88);
+    let cream = Color::srgb(0.95, 0.85, 0.65);
+    let lavender = Color::srgb(0.55, 0.50, 0.65);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     // Dark overlay container
@@ -20,7 +23,7 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                 row_gap: Val::Px(20.0),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.02, 0.02, 0.08, 0.85)),
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.12, 0.88)),
             MenuUI,
         ))
         .with_children(|parent| {
@@ -29,10 +32,10 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                 Text::new("ブロック崩し"),
                 TextFont {
                     font: font_handle.clone(),
-                    font_size: 60.0,
-                    ..default()
+                    font_size: 48.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(cyan),
+                TextColor(warm_white),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
@@ -41,10 +44,10 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                 Text::new("SPACE / タップ でスタート"),
                 TextFont {
                     font: font_handle.clone(),
-                    font_size: 28.0,
-                    ..default()
+                    font_size: 24.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(Color::WHITE),
+                TextColor(cream),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
@@ -53,10 +56,10 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                 Text::new("← → / タップ  パドル操作\nESC  ポーズ"),
                 TextFont {
                     font: font_handle,
-                    font_size: 20.0,
-                    ..default()
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(Color::srgb(0.5, 0.5, 0.6)),
+                TextColor(lavender),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
         });
@@ -71,7 +74,9 @@ pub fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MenuUI>>) 
 
 /// Setup game over screen
 pub fn setup_game_over(mut commands: Commands, score: Res<Score>, level: Res<Level>, asset_server: Res<AssetServer>) {
-    let magenta = Color::srgb(1.0, 0.0, 0.6);
+    let salmon = Color::srgb(0.92, 0.44, 0.44);
+    let cream = Color::srgb(0.95, 0.85, 0.65);
+    let lavender = Color::srgb(0.55, 0.50, 0.65);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     commands
@@ -85,7 +90,7 @@ pub fn setup_game_over(mut commands: Commands, score: Res<Score>, level: Res<Lev
                 row_gap: Val::Px(16.0),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.02, 0.02, 0.08, 0.85)),
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.12, 0.88)),
             GameOverUI,
         ))
         .with_children(|parent| {
@@ -94,10 +99,10 @@ pub fn setup_game_over(mut commands: Commands, score: Res<Score>, level: Res<Lev
                 Text::new("ゲームオーバー"),
                 TextFont {
                     font: font_handle.clone(),
-                    font_size: 50.0,
-                    ..default()
+                    font_size: 48.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(magenta),
+                TextColor(salmon),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
@@ -106,10 +111,10 @@ pub fn setup_game_over(mut commands: Commands, score: Res<Score>, level: Res<Lev
                 Text::new(format!("レベル {}\n最終スコア {}", level.current, score.value)),
                 TextFont {
                     font: font_handle.clone(),
-                    font_size: 30.0,
-                    ..default()
+                    font_size: 24.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(Color::WHITE),
+                TextColor(cream),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
@@ -118,10 +123,10 @@ pub fn setup_game_over(mut commands: Commands, score: Res<Score>, level: Res<Lev
                 Text::new("SPACE / タップ でリトライ"),
                 TextFont {
                     font: font_handle,
-                    font_size: 24.0,
-                    ..default()
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(Color::srgb(0.5, 0.5, 0.6)),
+                TextColor(lavender),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
         });
@@ -136,7 +141,9 @@ pub fn cleanup_game_over(mut commands: Commands, query: Query<Entity, With<GameO
 
 /// Setup level clear screen
 pub fn setup_level_clear(mut commands: Commands, score: Res<Score>, level: Res<Level>, asset_server: Res<AssetServer>) {
-    let neon_green = Color::srgb(0.0, 1.0, 0.6);
+    let soft_green = Color::srgb(0.40, 0.80, 0.52);
+    let cream = Color::srgb(0.95, 0.85, 0.65);
+    let lavender = Color::srgb(0.55, 0.50, 0.65);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     commands
@@ -150,7 +157,7 @@ pub fn setup_level_clear(mut commands: Commands, score: Res<Score>, level: Res<L
                 row_gap: Val::Px(16.0),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.02, 0.02, 0.08, 0.85)),
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.12, 0.88)),
             LevelClearUI,
         ))
         .with_children(|parent| {
@@ -159,10 +166,10 @@ pub fn setup_level_clear(mut commands: Commands, score: Res<Score>, level: Res<L
                 Text::new(format!("レベル {} クリア！", level.current)),
                 TextFont {
                     font: font_handle.clone(),
-                    font_size: 50.0,
-                    ..default()
+                    font_size: 48.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(neon_green),
+                TextColor(soft_green),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
@@ -171,10 +178,10 @@ pub fn setup_level_clear(mut commands: Commands, score: Res<Score>, level: Res<L
                 Text::new(format!("スコア {}", score.value)),
                 TextFont {
                     font: font_handle.clone(),
-                    font_size: 30.0,
-                    ..default()
+                    font_size: 24.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(Color::WHITE),
+                TextColor(cream),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
@@ -183,10 +190,10 @@ pub fn setup_level_clear(mut commands: Commands, score: Res<Score>, level: Res<L
                 Text::new("SPACE / タップ で次のレベルへ"),
                 TextFont {
                     font: font_handle,
-                    font_size: 24.0,
-                    ..default()
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
                 },
-                TextColor(Color::srgb(0.5, 0.5, 0.6)),
+                TextColor(lavender),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
         });
