@@ -1,0 +1,52 @@
+use bevy::prelude::*;
+
+/// Paddle marker component
+#[derive(Component)]
+pub struct Paddle;
+
+/// Ball marker component
+#[derive(Component)]
+pub struct Ball;
+
+/// Velocity component for moving entities
+#[derive(Component)]
+pub struct Velocity(pub Vec2);
+
+/// Block marker component
+#[derive(Component)]
+pub struct Block;
+
+/// Wall type for collision handling
+#[derive(Component)]
+pub enum Wall {
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+
+/// Collider component with size for AABB collision
+#[derive(Component)]
+pub struct Collider {
+    pub size: Vec2,
+}
+
+/// Score text UI marker
+#[derive(Component)]
+pub struct ScoreText;
+
+/// Level text UI marker
+#[derive(Component)]
+pub struct LevelText;
+
+/// Menu UI marker
+#[derive(Component)]
+pub struct MenuUI;
+
+/// Game over UI marker
+#[derive(Component)]
+pub struct GameOverUI;
+
+/// Level clear UI marker
+#[derive(Component)]
+pub struct LevelClearUI;
