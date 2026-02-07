@@ -27,29 +27,28 @@
 <body>
     <canvas id="bevy_canvas"></canvas>
     <script>
-        // Capture AudioContext instances created by cpal/Bevy before user gesture
+        // Capture AudioContext instances created by cpal/Bevy
         const audioContexts = [];
         const OrigAudioContext = window.AudioContext || window.webkitAudioContext;
         if (OrigAudioContext) {
-            window.AudioContext = function(...args) {
+            const Patched = function(...args) {
                 const ctx = new OrigAudioContext(...args);
                 audioContexts.push(ctx);
                 return ctx;
             };
-            window.AudioContext.prototype = OrigAudioContext.prototype;
+            Patched.prototype = OrigAudioContext.prototype;
+            window.AudioContext = Patched;
+            if (window.webkitAudioContext) window.webkitAudioContext = Patched;
         }
-        // Resume all suspended AudioContexts on first user interaction
+        // Resume all suspended AudioContexts on every user interaction
         function resumeAudio() {
             audioContexts.forEach(ctx => {
                 if (ctx.state === "suspended") ctx.resume();
             });
-            document.removeEventListener("click", resumeAudio);
-            document.removeEventListener("keydown", resumeAudio);
-            document.removeEventListener("touchstart", resumeAudio);
         }
-        document.addEventListener("click", resumeAudio);
-        document.addEventListener("keydown", resumeAudio);
-        document.addEventListener("touchstart", resumeAudio);
+        ["click", "touchstart", "touchend", "keydown"].forEach(e =>
+            document.addEventListener(e, resumeAudio, { capture: true })
+        );
     </script>
 </body>
 </html>
