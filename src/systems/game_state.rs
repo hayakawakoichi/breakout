@@ -310,8 +310,13 @@ pub fn setup_game_over(
             ));
 
             // Score info
+            let score_info = if test_play.is_some() {
+                format!("スコア {}", score.value)
+            } else {
+                format!("レベル {}\n最終スコア {}", level.current, score.value)
+            };
             parent.spawn((
-                Text::new(format!("レベル {}\n最終スコア {}", level.current, score.value)),
+                Text::new(score_info),
                 TextFont {
                     font: font_handle.clone(),
                     font_size: 24.0,
@@ -455,8 +460,13 @@ pub fn setup_level_clear(
         ))
         .with_children(|parent| {
             // Title
+            let clear_title = if test_play.is_some() {
+                "ステージクリア！".to_string()
+            } else {
+                format!("レベル {} クリア！", level.current)
+            };
             parent.spawn((
-                Text::new(format!("レベル {} クリア！", level.current)),
+                Text::new(clear_title),
                 TextFont {
                     font: font_handle.clone(),
                     font_size: 48.0,

@@ -155,7 +155,11 @@ impl Plugin for LevelClearPlugin {
             .add_systems(OnEnter(GameState::LevelClear), (setup_level_clear, stop_bgm))
             .add_systems(
                 OnExit(GameState::LevelClear),
-                (cleanup_level_clear, cleanup_for_next_level, advance_level),
+                (
+                    cleanup_level_clear,
+                    cleanup_for_next_level,
+                    advance_level.run_if(not(resource_exists::<TestPlayMode>)),
+                ),
             )
             .add_systems(
                 Update,
@@ -173,7 +177,7 @@ impl Plugin for EditorPlugin {
             .init_resource::<EditorState>()
             .add_systems(Startup, load_stage_from_url)
             // Editor state
-            .add_systems(OnEnter(GameState::Editor), setup_editor)
+            .add_systems(OnEnter(GameState::Editor), (setup_editor, cleanup_test_play))
             .add_systems(OnExit(GameState::Editor), cleanup_editor)
             .add_systems(
                 Update,
@@ -195,11 +199,29 @@ impl Plugin for EditorPlugin {
     }
 }
 
-/// System: enter test play mode — insert TestPlayMode marker, spawn editor blocks, transition to Countdown
+/// System: enter test play mode — insert TestPlayMode marker, reset level/score, transition to Countdown
 fn enter_test_play(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
+    mut level: ResMut<Level>,
+    mut score: ResMut<Score>,
 ) {
     commands.insert_resource(TestPlayMode);
+    level.current = 1;
+    score.value = 0;
     next_state.set(GameState::Countdown);
+}
+
+/// System: clean up test play state when returning to editor
+fn cleanup_test_play(
+    mut commands: Commands,
+    test_play: Option<Res<TestPlayMode>>,
+    mut level: ResMut<Level>,
+    mut score: ResMut<Score>,
+) {
+    if test_play.is_some() {
+        commands.remove_resource::<TestPlayMode>();
+        level.current = 1;
+        score.value = 0;
+    }
 }

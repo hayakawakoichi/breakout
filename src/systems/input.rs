@@ -96,13 +96,11 @@ pub fn pause_input(
 pub fn restart_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
-    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
     test_play: Option<Res<TestPlayMode>>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         if test_play.is_some() {
-            commands.remove_resource::<TestPlayMode>();
             next_state.set(GameState::Editor);
         } else {
             next_state.set(GameState::Menu);
@@ -114,13 +112,11 @@ pub fn restart_input(
 pub fn next_level_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
-    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
     test_play: Option<Res<TestPlayMode>>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         if test_play.is_some() {
-            commands.remove_resource::<TestPlayMode>();
             next_state.set(GameState::Editor);
         } else {
             next_state.set(GameState::Countdown);
