@@ -32,3 +32,39 @@ jobs:
 
       - name: Run tests
         run: cargo test
+
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev libx11-dev libxcursor-dev \
+            libxrandr-dev libxi-dev libwayland-dev libxkbcommon-dev \
+            pkg-config xvfb mesa-vulkan-drivers libgl1-mesa-dri
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: screenshots-${{ hashFiles('Cargo.lock') }}
+          restore-keys: screenshots-
+
+      - name: Capture level screenshots
+        run: xvfb-run cargo run --example capture_levels --release
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: level-screenshots
+          path: screenshots/
+          retention-days: 30
