@@ -113,6 +113,70 @@ pub struct LevelStats {
     pub time_elapsed: f32,
 }
 
+/// Audio volume settings (persisted)
+#[derive(Resource, Clone)]
+pub struct AudioSettings {
+    pub bgm_volume: f32,
+    pub sfx_volume: f32,
+}
+
+impl Default for AudioSettings {
+    fn default() -> Self {
+        Self {
+            bgm_volume: 0.4,
+            sfx_volume: 1.0,
+        }
+    }
+}
+
+impl AudioSettings {
+    /// Volume steps for settings UI (0%, 25%, 50%, 75%, 100%)
+    const STEPS: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
+
+    /// Load from persistent storage
+    pub fn load() -> Self {
+        let (bgm, sfx) = crate::storage::load_audio_settings();
+        Self {
+            bgm_volume: bgm,
+            sfx_volume: sfx,
+        }
+    }
+
+    /// Save to persistent storage
+    pub fn save(&self) {
+        crate::storage::save_audio_settings(self.bgm_volume, self.sfx_volume);
+    }
+
+    /// Get the current step index for a volume value
+    fn step_index(volume: f32) -> usize {
+        Self::STEPS
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                (volume - **a).abs().partial_cmp(&(volume - **b).abs()).unwrap()
+            })
+            .map(|(i, _)| i)
+            .unwrap_or(0)
+    }
+
+    /// Increase volume by one step, returns new value
+    pub fn step_up(volume: f32) -> f32 {
+        let idx = Self::step_index(volume);
+        Self::STEPS[(idx + 1).min(Self::STEPS.len() - 1)]
+    }
+
+    /// Decrease volume by one step, returns new value
+    pub fn step_down(volume: f32) -> f32 {
+        let idx = Self::step_index(volume);
+        Self::STEPS[idx.saturating_sub(1)]
+    }
+
+    /// Format volume as percentage string
+    pub fn volume_percent(volume: f32) -> u32 {
+        (volume * 100.0).round() as u32
+    }
+}
+
 /// Sound handles resource
 #[derive(Resource, Default)]
 pub struct GameSounds {
@@ -205,5 +269,37 @@ mod tests {
             let b = Level { current: i + 1 };
             assert!(b.speed_multiplier() > a.speed_multiplier());
         }
+    }
+
+    #[test]
+    fn audio_settings_default() {
+        let settings = AudioSettings::default();
+        assert!((settings.bgm_volume - 0.4).abs() < f32::EPSILON);
+        assert!((settings.sfx_volume - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn audio_settings_step_up() {
+        assert!((AudioSettings::step_up(0.0) - 0.25).abs() < f32::EPSILON);
+        assert!((AudioSettings::step_up(0.25) - 0.5).abs() < f32::EPSILON);
+        assert!((AudioSettings::step_up(0.75) - 1.0).abs() < f32::EPSILON);
+        // Clamped at max
+        assert!((AudioSettings::step_up(1.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn audio_settings_step_down() {
+        assert!((AudioSettings::step_down(1.0) - 0.75).abs() < f32::EPSILON);
+        assert!((AudioSettings::step_down(0.5) - 0.25).abs() < f32::EPSILON);
+        // Clamped at min
+        assert!((AudioSettings::step_down(0.0) - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn audio_settings_volume_percent() {
+        assert_eq!(AudioSettings::volume_percent(0.0), 0);
+        assert_eq!(AudioSettings::volume_percent(0.25), 25);
+        assert_eq!(AudioSettings::volume_percent(0.5), 50);
+        assert_eq!(AudioSettings::volume_percent(1.0), 100);
     }
 }

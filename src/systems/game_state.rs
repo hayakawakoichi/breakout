@@ -1,3 +1,4 @@
+use bevy::input::touch::Touches;
 use bevy::prelude::*;
 use bevy::text::FontSmoothing;
 use bevy::render::render_asset::RenderAssetUsages;
@@ -6,6 +7,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use crate::components::*;
 use crate::constants::*;
 use crate::resources::*;
+use crate::states::GameState;
 
 /// Create a small left-pointing triangle image (9x9 pixels, gold colored)
 fn create_triangle_image() -> Image {
@@ -86,13 +88,36 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             parent.spawn((
                 Text::new("← → / タップ  パドル操作\nESC  ポーズ"),
                 TextFont {
-                    font: font_handle,
+                    font: font_handle.clone(),
                     font_size: 16.0,
                     font_smoothing: FontSmoothing::None,
                 },
                 TextColor(lavender),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
+
+            // Settings button (tappable on mobile)
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        padding: UiRect::axes(Val::Px(16.0), Val::Px(8.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::NONE),
+                    SettingsButton,
+                ))
+                .with_children(|btn| {
+                    btn.spawn((
+                        Text::new("[ 設定 ]"),
+                        TextFont {
+                            font: font_handle,
+                            font_size: 16.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(lavender),
+                    ));
+                });
         });
 }
 
@@ -374,6 +399,7 @@ pub fn reset_game(
             With<HighScoreText>,
             With<PowerUp>,
             With<ComboPopup>,
+            With<PauseButton>,
         )>,
     >,
     mut paddle_query: Query<(Entity, &mut Sprite, &mut Collider), With<Paddle>>,
@@ -422,6 +448,455 @@ pub fn cleanup_for_next_level(
 
     for entity in &entities {
         commands.entity(entity).despawn();
+    }
+}
+
+/// Setup settings screen
+pub fn setup_settings(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    audio_settings: Res<AudioSettings>,
+) {
+    let warm_white = Color::srgb(1.0, 0.96, 0.88);
+    let cream = Color::srgb(0.95, 0.85, 0.65);
+    let lavender = Color::srgb(0.55, 0.50, 0.65);
+    let gold = Color::srgb(1.0, 0.85, 0.20);
+    let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
+
+    commands.init_resource::<crate::components::SettingsSelection>();
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.12, 0.88)),
+            SettingsUI,
+        ))
+        .with_children(|parent| {
+            // Title
+            parent.spawn((
+                Text::new("設定"),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 48.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(warm_white),
+                TextLayout::new_with_justify(JustifyText::Center),
+            ));
+
+            // BGM volume row
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(12.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    // Cursor (visible for selected row)
+                    row.spawn((
+                        Text::new(">"),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(gold),
+                        SettingsCursor,
+                    ));
+                    row.spawn((
+                        Text::new(format!(
+                            "BGM  < {:>3}% >",
+                            AudioSettings::volume_percent(audio_settings.bgm_volume)
+                        )),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(cream),
+                        SettingsBgmText,
+                    ));
+                });
+
+            // 効果音 volume row
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(12.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    // Hidden cursor placeholder (same width)
+                    row.spawn((
+                        Text::new(">"),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(Color::NONE),
+                        SettingsCursor,
+                    ));
+                    row.spawn((
+                        Text::new(format!(
+                            "効果音  < {:>3}% >",
+                            AudioSettings::volume_percent(audio_settings.sfx_volume)
+                        )),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(cream),
+                        SettingsSfxText,
+                    ));
+                });
+
+            // Separator
+            parent.spawn((
+                Text::new("-------------"),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(lavender),
+            ));
+
+            // Controls help
+            parent.spawn((
+                Text::new(
+                    "操作方法\n\
+                     SPACE / タップ  ゲーム開始\n\
+                     ← → / A D  パドル移動\n\
+                     ESC  一時停止 / 再開",
+                ),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(lavender),
+                TextLayout::new_with_justify(JustifyText::Center),
+            ));
+
+            // Back instruction
+            parent.spawn((
+                Text::new("ESC / タップ で戻る"),
+                TextFont {
+                    font: font_handle,
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(lavender),
+                TextLayout::new_with_justify(JustifyText::Center),
+            ));
+        });
+}
+
+/// Cleanup settings screen
+pub fn cleanup_settings(mut commands: Commands, query: Query<Entity, With<SettingsUI>>) {
+    for entity in &query {
+        commands.entity(entity).despawn_recursive();
+    }
+    commands.remove_resource::<crate::components::SettingsSelection>();
+}
+
+/// Setup pause overlay (top-aligned settings panel)
+pub fn setup_pause(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    audio_settings: Res<AudioSettings>,
+) {
+    let warm_white = Color::srgb(1.0, 0.96, 0.88);
+    let cream = Color::srgb(0.95, 0.85, 0.65);
+    let lavender = Color::srgb(0.55, 0.50, 0.65);
+    let gold = Color::srgb(1.0, 0.85, 0.20);
+    let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
+
+    commands.init_resource::<crate::components::SettingsSelection>();
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::FlexStart,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::top(Val::Px(60.0)),
+                row_gap: Val::Px(16.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.12, 0.88)),
+            GlobalZIndex(10),
+            PauseUI,
+        ))
+        .with_children(|parent| {
+            // Title
+            parent.spawn((
+                Text::new("ポーズ"),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 48.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(warm_white),
+                TextLayout::new_with_justify(JustifyText::Center),
+            ));
+
+            // BGM volume row
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(12.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Text::new(">"),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(gold),
+                        SettingsCursor,
+                    ));
+                    row.spawn((
+                        Text::new(format!(
+                            "BGM  < {:>3}% >",
+                            AudioSettings::volume_percent(audio_settings.bgm_volume)
+                        )),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(cream),
+                        SettingsBgmText,
+                    ));
+                });
+
+            // SFX volume row
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(12.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Text::new(">"),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(Color::NONE),
+                        SettingsCursor,
+                    ));
+                    row.spawn((
+                        Text::new(format!(
+                            "効果音  < {:>3}% >",
+                            AudioSettings::volume_percent(audio_settings.sfx_volume)
+                        )),
+                        TextFont {
+                            font: font_handle.clone(),
+                            font_size: 24.0,
+                            font_smoothing: FontSmoothing::None,
+                        },
+                        TextColor(cream),
+                        SettingsSfxText,
+                    ));
+                });
+
+            // Resume instruction
+            parent.spawn((
+                Text::new("ESC / タップ で再開"),
+                TextFont {
+                    font: font_handle,
+                    font_size: 16.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(lavender),
+                TextLayout::new_with_justify(JustifyText::Center),
+            ));
+        });
+}
+
+/// Cleanup pause overlay
+pub fn cleanup_pause(mut commands: Commands, query: Query<Entity, With<PauseUI>>) {
+    for entity in &query {
+        commands.entity(entity).despawn_recursive();
+    }
+    commands.remove_resource::<crate::components::SettingsSelection>();
+}
+
+/// Handle input on pause overlay (volume adjust + resume)
+pub fn pause_overlay_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut audio_settings: ResMut<AudioSettings>,
+    mut selection: ResMut<crate::components::SettingsSelection>,
+    mut bgm_text: Query<&mut Text, (With<SettingsBgmText>, Without<SettingsSfxText>)>,
+    mut sfx_text: Query<&mut Text, (With<SettingsSfxText>, Without<SettingsBgmText>)>,
+    mut cursors: Query<&mut TextColor, With<SettingsCursor>>,
+    bgm_sink: Query<&AudioSink, With<BgmMusic>>,
+) {
+    let gold = Color::srgb(1.0, 0.85, 0.20);
+
+    // Navigate up/down
+    if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
+        selection.index = selection.index.saturating_sub(1);
+    }
+    if keyboard.just_pressed(KeyCode::ArrowDown) || keyboard.just_pressed(KeyCode::KeyS) {
+        selection.index = (selection.index + 1).min(1);
+    }
+
+    // Adjust volume left/right
+    let mut changed = false;
+    if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA) {
+        match selection.index {
+            0 => audio_settings.bgm_volume = AudioSettings::step_down(audio_settings.bgm_volume),
+            _ => audio_settings.sfx_volume = AudioSettings::step_down(audio_settings.sfx_volume),
+        }
+        changed = true;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::KeyD) {
+        match selection.index {
+            0 => audio_settings.bgm_volume = AudioSettings::step_up(audio_settings.bgm_volume),
+            _ => audio_settings.sfx_volume = AudioSettings::step_up(audio_settings.sfx_volume),
+        }
+        changed = true;
+    }
+
+    if changed {
+        if let Ok(mut text) = bgm_text.get_single_mut() {
+            **text = format!(
+                "BGM  < {:>3}% >",
+                AudioSettings::volume_percent(audio_settings.bgm_volume)
+            );
+        }
+        if let Ok(mut text) = sfx_text.get_single_mut() {
+            **text = format!(
+                "効果音  < {:>3}% >",
+                AudioSettings::volume_percent(audio_settings.sfx_volume)
+            );
+        }
+        for sink in bgm_sink.iter() {
+            sink.set_volume(audio_settings.bgm_volume);
+        }
+        audio_settings.save();
+    }
+
+    // Update cursor visibility
+    let mut cursor_idx = 0;
+    for mut color in &mut cursors {
+        if cursor_idx == selection.index {
+            *color = TextColor(gold);
+        } else {
+            *color = TextColor(Color::NONE);
+        }
+        cursor_idx += 1;
+    }
+
+    // Resume: ESC or tap (skip tap on volume-change frame)
+    if keyboard.just_pressed(KeyCode::Escape)
+        || (!changed && touches.any_just_pressed())
+    {
+        next_state.set(GameState::Playing);
+    }
+}
+
+/// Handle input on settings screen
+pub fn settings_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut audio_settings: ResMut<AudioSettings>,
+    mut selection: ResMut<crate::components::SettingsSelection>,
+    mut bgm_text: Query<&mut Text, (With<SettingsBgmText>, Without<SettingsSfxText>)>,
+    mut sfx_text: Query<&mut Text, (With<SettingsSfxText>, Without<SettingsBgmText>)>,
+    mut cursors: Query<&mut TextColor, With<SettingsCursor>>,
+    bgm_sink: Query<&AudioSink, With<BgmMusic>>,
+) {
+    let gold = Color::srgb(1.0, 0.85, 0.20);
+
+    // Navigate up/down
+    if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
+        selection.index = selection.index.saturating_sub(1);
+    }
+    if keyboard.just_pressed(KeyCode::ArrowDown) || keyboard.just_pressed(KeyCode::KeyS) {
+        selection.index = (selection.index + 1).min(1);
+    }
+
+    // Adjust volume left/right
+    let mut changed = false;
+    if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA) {
+        match selection.index {
+            0 => audio_settings.bgm_volume = AudioSettings::step_down(audio_settings.bgm_volume),
+            _ => audio_settings.sfx_volume = AudioSettings::step_down(audio_settings.sfx_volume),
+        }
+        changed = true;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::KeyD) {
+        match selection.index {
+            0 => audio_settings.bgm_volume = AudioSettings::step_up(audio_settings.bgm_volume),
+            _ => audio_settings.sfx_volume = AudioSettings::step_up(audio_settings.sfx_volume),
+        }
+        changed = true;
+    }
+
+    if changed {
+        // Update text displays
+        if let Ok(mut text) = bgm_text.get_single_mut() {
+            **text = format!(
+                "BGM  < {:>3}% >",
+                AudioSettings::volume_percent(audio_settings.bgm_volume)
+            );
+        }
+        if let Ok(mut text) = sfx_text.get_single_mut() {
+            **text = format!(
+                "効果音  < {:>3}% >",
+                AudioSettings::volume_percent(audio_settings.sfx_volume)
+            );
+        }
+        // Apply BGM volume immediately
+        for sink in bgm_sink.iter() {
+            sink.set_volume(audio_settings.bgm_volume);
+        }
+        audio_settings.save();
+    }
+
+    // Update cursor visibility based on selection
+    // Cursors are spawned in order: index 0 = BGM row, index 1 = SFX row
+    let mut cursor_idx = 0;
+    for mut color in &mut cursors {
+        if cursor_idx == selection.index {
+            *color = TextColor(gold);
+        } else {
+            *color = TextColor(Color::NONE);
+        }
+        cursor_idx += 1;
+    }
+
+    // Back to menu
+    if keyboard.just_pressed(KeyCode::Escape) || touches.any_just_pressed() {
+        next_state.set(GameState::Menu);
     }
 }
 

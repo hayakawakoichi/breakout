@@ -42,6 +42,7 @@ fn main() {
         .add_plugins((
             CorePlugin,
             MenuPlugin,
+            SettingsPlugin,
             GameplayPlugin,
             GameOverPlugin,
             LevelClearPlugin,

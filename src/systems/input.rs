@@ -44,29 +44,38 @@ pub fn paddle_input(
     paddle_transform.translation.x = new_x.clamp(-limit, limit);
 }
 
-/// Handle game start input (Space or tap to start)
+/// Handle game start input (Space or tap to start, S for settings)
 pub fn start_game_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
+    settings_btn: Query<&Interaction, With<crate::components::SettingsButton>>,
 ) {
+    if keyboard.just_pressed(KeyCode::KeyS) {
+        next_state.set(GameState::Settings);
+        return;
+    }
+    // Check if settings button was tapped
+    for interaction in &settings_btn {
+        if *interaction == Interaction::Pressed {
+            next_state.set(GameState::Settings);
+            return;
+        }
+    }
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
 }
 
-/// Handle pause input
+/// Handle pause input (Playing state only — resume is handled by pause_overlay_input)
 pub fn pause_input(
     keyboard: Res<ButtonInput<KeyCode>>,
-    current_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
+    pause_btn: Query<&Interaction, With<PauseButton>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        match current_state.get() {
-            GameState::Playing => next_state.set(GameState::Paused),
-            GameState::Paused => next_state.set(GameState::Playing),
-            _ => {}
-        }
+    let btn_pressed = pause_btn.iter().any(|i| *i == Interaction::Pressed);
+    if keyboard.just_pressed(KeyCode::Escape) || btn_pressed {
+        next_state.set(GameState::Paused);
     }
 }
 

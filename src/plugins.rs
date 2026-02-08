@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use crate::components::{Block, BgmMusic, Paddle};
+use crate::resources::*;
 use crate::states::GameState;
 use crate::systems::audio::CollisionEvent;
-use crate::resources::*;
 use crate::systems::*;
 use crate::systems::effects::TrailTimer;
 
@@ -22,6 +22,7 @@ impl Plugin for CorePlugin {
             .insert_resource(HighScores::load())
             .init_resource::<LevelStats>()
             .init_resource::<TrailTimer>()
+            .insert_resource(AudioSettings::load())
             .init_state::<GameState>()
             .add_event::<CollisionEvent>()
             .add_systems(Startup, (setup_camera, load_sounds))
@@ -91,9 +92,9 @@ impl Plugin for GameplayPlugin {
                     .run_if(in_state(GameState::Playing)),
             )
             // Paused state
-            .add_systems(OnEnter(GameState::Paused), pause_bgm)
-            .add_systems(OnExit(GameState::Paused), resume_bgm)
-            .add_systems(Update, pause_input.run_if(in_state(GameState::Paused)));
+            .add_systems(OnEnter(GameState::Paused), (pause_bgm, setup_pause))
+            .add_systems(OnExit(GameState::Paused), (resume_bgm, cleanup_pause))
+            .add_systems(Update, pause_overlay_input.run_if(in_state(GameState::Paused)));
     }
 }
 
@@ -110,6 +111,18 @@ impl Plugin for GameOverPlugin {
                 update_new_record_flash,
                 update_rank_marker,
             ).run_if(in_state(GameState::GameOver)));
+    }
+}
+
+/// Settings plugin: settings screen systems
+pub struct SettingsPlugin;
+
+impl Plugin for SettingsPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_systems(OnEnter(GameState::Settings), setup_settings)
+            .add_systems(OnExit(GameState::Settings), cleanup_settings)
+            .add_systems(Update, settings_input.run_if(in_state(GameState::Settings)));
     }
 }
 

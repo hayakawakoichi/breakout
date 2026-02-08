@@ -3,7 +3,7 @@
 //! Usage:
 //!   cargo run --example capture_levels
 //!
-//! Outputs: screenshots/level_1.png .. screenshots/level_5.png
+//! Outputs: screenshots/level_1.png .. screenshots/level_9.png
 
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
@@ -38,7 +38,7 @@ impl Default for CaptureState {
     fn default() -> Self {
         Self {
             current_level: 1,
-            max_level: 5,
+            max_level: 9,
             frames_waited: 0,
             frames_to_wait: 10,
             phase: CapturePhase::WaitingToCapture,

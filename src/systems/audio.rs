@@ -2,7 +2,7 @@ use bevy::audio::Volume;
 use bevy::prelude::*;
 
 use crate::components::BgmMusic;
-use crate::resources::*;
+use crate::resources::{AudioSettings, GameSounds};
 
 /// Collision event types for sound playback
 #[derive(Event, Clone, Debug, PartialEq)]
@@ -19,6 +19,7 @@ pub fn play_collision_sounds(
     mut commands: Commands,
     mut events: EventReader<CollisionEvent>,
     sounds: Res<GameSounds>,
+    audio_settings: Res<AudioSettings>,
 ) {
     for event in events.read() {
         let sound = match event {
@@ -31,18 +32,18 @@ pub fn play_collision_sounds(
         if let Some(source) = sound {
             commands.spawn((
                 AudioPlayer::new(source),
-                PlaybackSettings::DESPAWN,
+                PlaybackSettings::DESPAWN.with_volume(Volume::new(audio_settings.sfx_volume)),
             ));
         }
     }
 }
 
 /// Start BGM when entering Playing state
-pub fn start_bgm(mut commands: Commands, sounds: Res<GameSounds>) {
+pub fn start_bgm(mut commands: Commands, sounds: Res<GameSounds>, audio_settings: Res<AudioSettings>) {
     if let Some(source) = sounds.bgm.clone() {
         commands.spawn((
             AudioPlayer::new(source),
-            PlaybackSettings::LOOP.with_volume(Volume::new(0.4)),
+            PlaybackSettings::LOOP.with_volume(Volume::new(audio_settings.bgm_volume)),
             BgmMusic,
         ));
     }

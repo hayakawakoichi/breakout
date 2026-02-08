@@ -120,3 +120,43 @@ pub struct RankMarker(pub f32);
 pub struct PowerUpEffects {
     pub effects: Vec<ActiveEffect>,
 }
+
+/// Settings screen UI marker
+#[derive(Component)]
+pub struct SettingsUI;
+
+/// Settings screen: currently selected row (0=BGM, 1=SFX)
+#[derive(Resource)]
+pub struct SettingsSelection {
+    pub index: usize,
+}
+
+impl Default for SettingsSelection {
+    fn default() -> Self {
+        Self { index: 0 }
+    }
+}
+
+/// Settings screen: BGM volume text marker
+#[derive(Component)]
+pub struct SettingsBgmText;
+
+/// Settings screen: SFX volume text marker
+#[derive(Component)]
+pub struct SettingsSfxText;
+
+/// Settings screen: selection cursor marker
+#[derive(Component)]
+pub struct SettingsCursor;
+
+/// Menu screen: tappable settings button marker
+#[derive(Component)]
+pub struct SettingsButton;
+
+/// Pause overlay UI marker
+#[derive(Component)]
+pub struct PauseUI;
+
+/// HUD pause button marker
+#[derive(Component)]
+pub struct PauseButton;
