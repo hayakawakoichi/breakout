@@ -185,6 +185,8 @@ pub struct GameSounds {
     pub game_over: Option<Handle<AudioSource>>,
     pub level_up: Option<Handle<AudioSource>>,
     pub bgm: Option<Handle<AudioSource>>,
+    pub countdown_beep: Option<Handle<AudioSource>>,
+    pub countdown_go: Option<Handle<AudioSource>>,
 }
 
 #[cfg(test)]

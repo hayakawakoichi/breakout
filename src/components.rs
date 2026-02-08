@@ -160,3 +160,14 @@ pub struct PauseUI;
 /// HUD pause button marker
 #[derive(Component)]
 pub struct PauseButton;
+
+/// Countdown container component (attached to parent node)
+#[derive(Component)]
+pub struct CountdownDisplay {
+    pub timer: Timer,
+    pub count: u32,
+}
+
+/// Countdown text marker (attached to child text entity for animation)
+#[derive(Component)]
+pub struct CountdownText;

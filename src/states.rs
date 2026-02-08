@@ -5,6 +5,7 @@ use bevy::prelude::*;
 pub enum GameState {
     #[default]
     Menu,
+    Countdown,
     Playing,
     Paused,
     GameOver,

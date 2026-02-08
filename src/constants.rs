@@ -63,3 +63,8 @@ pub const WIDE_PADDLE_MULTIPLIER: f32 = 1.5;
 pub const SLOW_BALL_DURATION: f32 = 6.0;
 pub const SLOW_BALL_MULTIPLIER: f32 = 0.6;
 pub const FIREBALL_DURATION: f32 = 8.0;
+
+// Countdown
+pub const COUNTDOWN_STEP_DURATION: f32 = 1.0;
+pub const COUNTDOWN_GO_DURATION: f32 = 0.5;
+pub const COUNTDOWN_SCALE_ANIM_DURATION: f32 = 0.3;

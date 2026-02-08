@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::{Block, BgmMusic, Paddle};
+use crate::components::{Block, BgmMusic, CountdownDisplay, Paddle};
 use crate::resources::*;
 use crate::states::GameState;
 use crate::systems::audio::CollisionEvent;
@@ -50,21 +50,34 @@ pub struct GameplayPlugin;
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut App) {
         app
-            // Playing state - enter (fresh level)
+            // Countdown state - enter (fresh level: spawn field + countdown)
             .add_systems(
-                OnEnter(GameState::Playing),
+                OnEnter(GameState::Countdown),
                 (spawn_paddle, spawn_ball, spawn_blocks, spawn_walls, spawn_ui, record_level_start_score)
                     .run_if(not(any_with_component::<Block>)),
+            )
+            .add_systems(
+                OnEnter(GameState::Countdown),
+                spawn_countdown.run_if(not(any_with_component::<CountdownDisplay>)),
+            )
+            // Countdown state - update (paddle movable, countdown ticking)
+            .add_systems(
+                Update,
+                (paddle_input, update_countdown)
+                    .run_if(in_state(GameState::Countdown)),
+            )
+            // Countdown state - exit
+            .add_systems(OnExit(GameState::Countdown), cleanup_countdown)
+            // Playing state - enter (start BGM after countdown)
+            .add_systems(
+                OnEnter(GameState::Playing),
+                start_bgm.run_if(not(any_with_component::<BgmMusic>)),
             )
             // Playing state - enter (continue after pause or life lost)
             .add_systems(
                 OnEnter(GameState::Playing),
                 (spawn_paddle, spawn_ball)
                     .run_if(any_with_component::<Block>.and(not(any_with_component::<Paddle>))),
-            )
-            .add_systems(
-                OnEnter(GameState::Playing),
-                start_bgm.run_if(not(any_with_component::<BgmMusic>)),
             )
             // Playing state - update
             .add_systems(

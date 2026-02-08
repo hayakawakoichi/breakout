@@ -63,7 +63,7 @@ pub fn start_game_input(
         }
     }
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
-        next_state.set(GameState::Playing);
+        next_state.set(GameState::Countdown);
     }
 }
 
@@ -97,6 +97,6 @@ pub fn next_level_input(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
-        next_state.set(GameState::Playing);
+        next_state.set(GameState::Countdown);
     }
 }

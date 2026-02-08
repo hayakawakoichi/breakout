@@ -602,6 +602,8 @@ pub fn load_sounds(mut commands: Commands, asset_server: Res<AssetServer>) {
         game_over: asset_server.load_optional("sounds/gameover.wav"),
         level_up: asset_server.load_optional("sounds/levelup.wav"),
         bgm: asset_server.load_optional("sounds/bgm.wav"),
+        countdown_beep: asset_server.load_optional("sounds/countdown_beep.wav"),
+        countdown_go: asset_server.load_optional("sounds/countdown_go.wav"),
     };
     commands.insert_resource(sounds);
 }

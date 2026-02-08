@@ -8,6 +8,7 @@ pub mod game_state;
 pub mod effects;
 pub mod powerup;
 pub mod combo;
+pub mod countdown;
 
 pub use setup::*;
 pub use input::*;
@@ -19,3 +20,4 @@ pub use game_state::*;
 pub use effects::*;
 pub use powerup::*;
 pub use combo::*;
+pub use countdown::*;
