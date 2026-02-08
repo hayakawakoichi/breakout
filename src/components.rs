@@ -161,6 +161,15 @@ pub struct PauseUI;
 #[derive(Component)]
 pub struct PauseButton;
 
+/// Volume adjustment button (tappable on mobile)
+#[derive(Component, Clone, Copy)]
+pub enum VolumeButton {
+    BgmDown,
+    BgmUp,
+    SfxDown,
+    SfxUp,
+}
+
 /// Countdown container component (attached to parent node)
 #[derive(Component)]
 pub struct CountdownDisplay {

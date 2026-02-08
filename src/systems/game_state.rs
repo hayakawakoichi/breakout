@@ -37,6 +37,110 @@ fn create_triangle_image() -> Image {
     )
 }
 
+/// Spawn a volume control row: [cursor] [label] [< button] [value%] [> button]
+fn spawn_volume_row(
+    parent: &mut ChildBuilder,
+    font: &Handle<Font>,
+    label: &str,
+    volume: f32,
+    is_selected: bool,
+    down_variant: VolumeButton,
+    up_variant: VolumeButton,
+    text_marker: impl Component,
+) {
+    let cream = Color::srgb(0.95, 0.85, 0.65);
+    let gold = Color::srgb(1.0, 0.85, 0.20);
+
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(4.0),
+            ..default()
+        })
+        .with_children(|row| {
+            // Cursor
+            row.spawn((
+                Text::new(">"),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 24.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(if is_selected { gold } else { Color::NONE }),
+                SettingsCursor,
+            ));
+            // Label
+            row.spawn((
+                Text::new(format!("{label}  ")),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 24.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(cream),
+            ));
+            // Down button
+            row.spawn((
+                Button,
+                Node {
+                    padding: UiRect::axes(Val::Px(14.0), Val::Px(8.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.06)),
+                down_variant,
+            ))
+            .with_children(|btn| {
+                btn.spawn((
+                    Text::new("<"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 24.0,
+                        font_smoothing: FontSmoothing::None,
+                    },
+                    TextColor(cream),
+                ));
+            });
+            // Value text
+            row.spawn((
+                Text::new(format!("{:>3}%", AudioSettings::volume_percent(volume))),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 24.0,
+                    font_smoothing: FontSmoothing::None,
+                },
+                TextColor(cream),
+                Node {
+                    min_width: Val::Px(70.0),
+                    ..default()
+                },
+                TextLayout::new_with_justify(JustifyText::Center),
+                text_marker,
+            ));
+            // Up button
+            row.spawn((
+                Button,
+                Node {
+                    padding: UiRect::axes(Val::Px(14.0), Val::Px(8.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.06)),
+                up_variant,
+            ))
+            .with_children(|btn| {
+                btn.spawn((
+                    Text::new(">"),
+                    TextFont {
+                        font: font.clone(),
+                        font_size: 24.0,
+                        font_smoothing: FontSmoothing::None,
+                    },
+                    TextColor(cream),
+                ));
+            });
+        });
+}
+
 /// Setup menu screen
 pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let warm_white = Color::srgb(1.0, 0.96, 0.88);
@@ -458,9 +562,7 @@ pub fn setup_settings(
     audio_settings: Res<AudioSettings>,
 ) {
     let warm_white = Color::srgb(1.0, 0.96, 0.88);
-    let cream = Color::srgb(0.95, 0.85, 0.65);
     let lavender = Color::srgb(0.55, 0.50, 0.65);
-    let gold = Color::srgb(1.0, 0.85, 0.20);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     commands.init_resource::<crate::components::SettingsSelection>();
@@ -493,74 +595,16 @@ pub fn setup_settings(
             ));
 
             // BGM volume row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    // Cursor (visible for selected row)
-                    row.spawn((
-                        Text::new(">"),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(gold),
-                        SettingsCursor,
-                    ));
-                    row.spawn((
-                        Text::new(format!(
-                            "BGM  < {:>3}% >",
-                            AudioSettings::volume_percent(audio_settings.bgm_volume)
-                        )),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(cream),
-                        SettingsBgmText,
-                    ));
-                });
+            spawn_volume_row(
+                parent, &font_handle, "BGM", audio_settings.bgm_volume,
+                true, VolumeButton::BgmDown, VolumeButton::BgmUp, SettingsBgmText,
+            );
 
             // 効果音 volume row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    // Hidden cursor placeholder (same width)
-                    row.spawn((
-                        Text::new(">"),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(Color::NONE),
-                        SettingsCursor,
-                    ));
-                    row.spawn((
-                        Text::new(format!(
-                            "効果音  < {:>3}% >",
-                            AudioSettings::volume_percent(audio_settings.sfx_volume)
-                        )),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(cream),
-                        SettingsSfxText,
-                    ));
-                });
+            spawn_volume_row(
+                parent, &font_handle, "効果音", audio_settings.sfx_volume,
+                false, VolumeButton::SfxDown, VolumeButton::SfxUp, SettingsSfxText,
+            );
 
             // Separator
             parent.spawn((
@@ -619,9 +663,7 @@ pub fn setup_pause(
     audio_settings: Res<AudioSettings>,
 ) {
     let warm_white = Color::srgb(1.0, 0.96, 0.88);
-    let cream = Color::srgb(0.95, 0.85, 0.65);
     let lavender = Color::srgb(0.55, 0.50, 0.65);
-    let gold = Color::srgb(1.0, 0.85, 0.20);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     commands.init_resource::<crate::components::SettingsSelection>();
@@ -656,72 +698,16 @@ pub fn setup_pause(
             ));
 
             // BGM volume row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new(">"),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(gold),
-                        SettingsCursor,
-                    ));
-                    row.spawn((
-                        Text::new(format!(
-                            "BGM  < {:>3}% >",
-                            AudioSettings::volume_percent(audio_settings.bgm_volume)
-                        )),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(cream),
-                        SettingsBgmText,
-                    ));
-                });
+            spawn_volume_row(
+                parent, &font_handle, "BGM", audio_settings.bgm_volume,
+                true, VolumeButton::BgmDown, VolumeButton::BgmUp, SettingsBgmText,
+            );
 
             // SFX volume row
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new(">"),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(Color::NONE),
-                        SettingsCursor,
-                    ));
-                    row.spawn((
-                        Text::new(format!(
-                            "効果音  < {:>3}% >",
-                            AudioSettings::volume_percent(audio_settings.sfx_volume)
-                        )),
-                        TextFont {
-                            font: font_handle.clone(),
-                            font_size: 24.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(cream),
-                        SettingsSfxText,
-                    ));
-                });
+            spawn_volume_row(
+                parent, &font_handle, "効果音", audio_settings.sfx_volume,
+                false, VolumeButton::SfxDown, VolumeButton::SfxUp, SettingsSfxText,
+            );
 
             // Resume instruction
             parent.spawn((
@@ -756,6 +742,7 @@ pub fn pause_overlay_input(
     mut sfx_text: Query<&mut Text, (With<SettingsSfxText>, Without<SettingsBgmText>)>,
     mut cursors: Query<&mut TextColor, With<SettingsCursor>>,
     bgm_sink: Query<&AudioSink, With<BgmMusic>>,
+    volume_btns: Query<(&Interaction, &VolumeButton), Changed<Interaction>>,
 ) {
     let gold = Color::srgb(1.0, 0.85, 0.20);
 
@@ -767,7 +754,7 @@ pub fn pause_overlay_input(
         selection.index = (selection.index + 1).min(1);
     }
 
-    // Adjust volume left/right
+    // Adjust volume via keyboard
     let mut changed = false;
     if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA) {
         match selection.index {
@@ -784,16 +771,31 @@ pub fn pause_overlay_input(
         changed = true;
     }
 
+    // Adjust volume via tappable buttons (Changed filter = fire once per tap)
+    let mut any_btn_pressed = false;
+    for (interaction, btn) in &volume_btns {
+        if *interaction == Interaction::Pressed {
+            any_btn_pressed = true;
+            match btn {
+                VolumeButton::BgmDown => audio_settings.bgm_volume = AudioSettings::step_down(audio_settings.bgm_volume),
+                VolumeButton::BgmUp => audio_settings.bgm_volume = AudioSettings::step_up(audio_settings.bgm_volume),
+                VolumeButton::SfxDown => audio_settings.sfx_volume = AudioSettings::step_down(audio_settings.sfx_volume),
+                VolumeButton::SfxUp => audio_settings.sfx_volume = AudioSettings::step_up(audio_settings.sfx_volume),
+            }
+            changed = true;
+        }
+    }
+
     if changed {
         if let Ok(mut text) = bgm_text.get_single_mut() {
             **text = format!(
-                "BGM  < {:>3}% >",
+                "{:>3}%",
                 AudioSettings::volume_percent(audio_settings.bgm_volume)
             );
         }
         if let Ok(mut text) = sfx_text.get_single_mut() {
             **text = format!(
-                "効果音  < {:>3}% >",
+                "{:>3}%",
                 AudioSettings::volume_percent(audio_settings.sfx_volume)
             );
         }
@@ -814,9 +816,9 @@ pub fn pause_overlay_input(
         cursor_idx += 1;
     }
 
-    // Resume: ESC or tap (skip tap on volume-change frame)
+    // Resume: ESC or tap outside buttons
     if keyboard.just_pressed(KeyCode::Escape)
-        || (!changed && touches.any_just_pressed())
+        || (!changed && !any_btn_pressed && touches.any_just_pressed())
     {
         next_state.set(GameState::Playing);
     }
@@ -833,6 +835,7 @@ pub fn settings_input(
     mut sfx_text: Query<&mut Text, (With<SettingsSfxText>, Without<SettingsBgmText>)>,
     mut cursors: Query<&mut TextColor, With<SettingsCursor>>,
     bgm_sink: Query<&AudioSink, With<BgmMusic>>,
+    volume_btns: Query<(&Interaction, &VolumeButton), Changed<Interaction>>,
 ) {
     let gold = Color::srgb(1.0, 0.85, 0.20);
 
@@ -844,7 +847,7 @@ pub fn settings_input(
         selection.index = (selection.index + 1).min(1);
     }
 
-    // Adjust volume left/right
+    // Adjust volume via keyboard
     let mut changed = false;
     if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA) {
         match selection.index {
@@ -861,29 +864,41 @@ pub fn settings_input(
         changed = true;
     }
 
+    // Adjust volume via tappable buttons (Changed filter = fire once per tap)
+    let mut any_btn_pressed = false;
+    for (interaction, btn) in &volume_btns {
+        if *interaction == Interaction::Pressed {
+            any_btn_pressed = true;
+            match btn {
+                VolumeButton::BgmDown => audio_settings.bgm_volume = AudioSettings::step_down(audio_settings.bgm_volume),
+                VolumeButton::BgmUp => audio_settings.bgm_volume = AudioSettings::step_up(audio_settings.bgm_volume),
+                VolumeButton::SfxDown => audio_settings.sfx_volume = AudioSettings::step_down(audio_settings.sfx_volume),
+                VolumeButton::SfxUp => audio_settings.sfx_volume = AudioSettings::step_up(audio_settings.sfx_volume),
+            }
+            changed = true;
+        }
+    }
+
     if changed {
-        // Update text displays
         if let Ok(mut text) = bgm_text.get_single_mut() {
             **text = format!(
-                "BGM  < {:>3}% >",
+                "{:>3}%",
                 AudioSettings::volume_percent(audio_settings.bgm_volume)
             );
         }
         if let Ok(mut text) = sfx_text.get_single_mut() {
             **text = format!(
-                "効果音  < {:>3}% >",
+                "{:>3}%",
                 AudioSettings::volume_percent(audio_settings.sfx_volume)
             );
         }
-        // Apply BGM volume immediately
         for sink in bgm_sink.iter() {
             sink.set_volume(audio_settings.bgm_volume);
         }
         audio_settings.save();
     }
 
-    // Update cursor visibility based on selection
-    // Cursors are spawned in order: index 0 = BGM row, index 1 = SFX row
+    // Update cursor visibility
     let mut cursor_idx = 0;
     for mut color in &mut cursors {
         if cursor_idx == selection.index {
@@ -894,8 +909,10 @@ pub fn settings_input(
         cursor_idx += 1;
     }
 
-    // Back to menu
-    if keyboard.just_pressed(KeyCode::Escape) || touches.any_just_pressed() {
+    // Back to menu (skip if volume button was tapped)
+    if keyboard.just_pressed(KeyCode::Escape)
+        || (!changed && !any_btn_pressed && touches.any_just_pressed())
+    {
         next_state.set(GameState::Menu);
     }
 }
