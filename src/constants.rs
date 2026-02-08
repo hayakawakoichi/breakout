@@ -68,3 +68,9 @@ pub const FIREBALL_DURATION: f32 = 8.0;
 pub const COUNTDOWN_STEP_DURATION: f32 = 1.0;
 pub const COUNTDOWN_GO_DURATION: f32 = 0.5;
 pub const COUNTDOWN_SCALE_ANIM_DURATION: f32 = 0.3;
+
+// Editor
+pub const EDITOR_ROWS: usize = 7;
+pub const EDITOR_COLS: usize = 10;
+pub const EDITOR_CELL_SIZE: f32 = 60.0;
+pub const EDITOR_CELL_GAP: f32 = 4.0;

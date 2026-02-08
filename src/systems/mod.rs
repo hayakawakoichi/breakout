@@ -9,6 +9,7 @@ pub mod effects;
 pub mod powerup;
 pub mod combo;
 pub mod countdown;
+pub mod editor;
 
 pub use setup::*;
 pub use input::*;
@@ -21,3 +22,4 @@ pub use effects::*;
 pub use powerup::*;
 pub use combo::*;
 pub use countdown::*;
+pub use editor::*;

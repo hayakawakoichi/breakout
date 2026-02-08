@@ -46,6 +46,7 @@ fn main() {
             GameplayPlugin,
             GameOverPlugin,
             LevelClearPlugin,
+            EditorPlugin,
         ))
         .run();
 }

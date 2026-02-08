@@ -200,27 +200,59 @@ pub fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
 
-            // Settings button (tappable on mobile)
+            // Button row
             parent
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::axes(Val::Px(16.0), Val::Px(8.0)),
-                        ..default()
-                    },
-                    BackgroundColor(Color::NONE),
-                    SettingsButton,
-                ))
-                .with_children(|btn| {
-                    btn.spawn((
-                        Text::new("[ 設定 ]"),
-                        TextFont {
-                            font: font_handle,
-                            font_size: 16.0,
-                            font_smoothing: FontSmoothing::None,
-                        },
-                        TextColor(lavender),
-                    ));
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(16.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    // Settings button (tappable on mobile)
+                    row
+                        .spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(16.0), Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::NONE),
+                            SettingsButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text::new("[ 設定 ]"),
+                                TextFont {
+                                    font: font_handle.clone(),
+                                    font_size: 16.0,
+                                    font_smoothing: FontSmoothing::None,
+                                },
+                                TextColor(lavender),
+                            ));
+                        });
+
+                    // Editor button
+                    row
+                        .spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(16.0), Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::NONE),
+                            EditorButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text::new("[ エディタ ]"),
+                                TextFont {
+                                    font: font_handle,
+                                    font_size: 16.0,
+                                    font_smoothing: FontSmoothing::None,
+                                },
+                                TextColor(lavender),
+                            ));
+                        });
                 });
         });
 }
@@ -240,6 +272,7 @@ pub fn setup_game_over(
     mut high_scores: ResMut<HighScores>,
     asset_server: Res<AssetServer>,
     mut images: ResMut<Assets<Image>>,
+    test_play: Option<Res<TestPlayMode>>,
 ) {
     let salmon = Color::srgb(0.92, 0.44, 0.44);
     let cream = Color::srgb(0.95, 0.85, 0.65);
@@ -362,8 +395,13 @@ pub fn setup_game_over(
             }
 
             // Restart instruction
+            let restart_text = if test_play.is_some() {
+                "SPACE / タップ でエディタに戻る"
+            } else {
+                "SPACE / タップ でリトライ"
+            };
             parent.spawn((
-                Text::new("SPACE / タップ でリトライ"),
+                Text::new(restart_text),
                 TextFont {
                     font: font_handle,
                     font_size: 16.0,
@@ -389,6 +427,7 @@ pub fn setup_level_clear(
     level: Res<Level>,
     level_stats: Res<LevelStats>,
     asset_server: Res<AssetServer>,
+    test_play: Option<Res<TestPlayMode>>,
 ) {
     let soft_green = Color::srgb(0.40, 0.80, 0.52);
     let cream = Color::srgb(0.95, 0.85, 0.65);
@@ -459,8 +498,13 @@ pub fn setup_level_clear(
             ));
 
             // Next level instruction
+            let next_text = if test_play.is_some() {
+                "SPACE / タップ でエディタに戻る"
+            } else {
+                "SPACE / タップ で次のレベルへ"
+            };
             parent.spawn((
-                Text::new("SPACE / タップ で次のレベルへ"),
+                Text::new(next_text),
                 TextFont {
                     font: font_handle,
                     font_size: 16.0,
@@ -673,10 +717,9 @@ pub fn setup_pause(
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                justify_content: JustifyContent::FlexStart,
+                justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::top(Val::Px(60.0)),
                 row_gap: Val::Px(16.0),
                 ..default()
             },

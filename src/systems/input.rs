@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::components::*;
 use crate::constants::*;
+use crate::resources::TestPlayMode;
 use crate::states::GameState;
 
 /// Handle paddle movement input
@@ -44,21 +45,33 @@ pub fn paddle_input(
     paddle_transform.translation.x = new_x.clamp(-limit, limit);
 }
 
-/// Handle game start input (Space or tap to start, S for settings)
+/// Handle game start input (Space or tap to start, S for settings, E for editor)
 pub fn start_game_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
-    settings_btn: Query<&Interaction, With<crate::components::SettingsButton>>,
+    settings_btn: Query<&Interaction, (With<crate::components::SettingsButton>, Without<EditorButton>)>,
+    editor_btn: Query<&Interaction, (With<EditorButton>, Without<crate::components::SettingsButton>)>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyS) {
         next_state.set(GameState::Settings);
+        return;
+    }
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        next_state.set(GameState::Editor);
         return;
     }
     // Check if settings button was tapped
     for interaction in &settings_btn {
         if *interaction == Interaction::Pressed {
             next_state.set(GameState::Settings);
+            return;
+        }
+    }
+    // Check if editor button was tapped
+    for interaction in &editor_btn {
+        if *interaction == Interaction::Pressed {
+            next_state.set(GameState::Editor);
             return;
         }
     }
@@ -83,10 +96,17 @@ pub fn pause_input(
 pub fn restart_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
+    test_play: Option<Res<TestPlayMode>>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
-        next_state.set(GameState::Menu);
+        if test_play.is_some() {
+            commands.remove_resource::<TestPlayMode>();
+            next_state.set(GameState::Editor);
+        } else {
+            next_state.set(GameState::Menu);
+        }
     }
 }
 
@@ -94,9 +114,16 @@ pub fn restart_input(
 pub fn next_level_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     touches: Res<Touches>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
+    test_play: Option<Res<TestPlayMode>>,
 ) {
     if keyboard.just_pressed(KeyCode::Space) || touches.any_just_pressed() {
-        next_state.set(GameState::Countdown);
+        if test_play.is_some() {
+            commands.remove_resource::<TestPlayMode>();
+            next_state.set(GameState::Editor);
+        } else {
+            next_state.set(GameState::Countdown);
+        }
     }
 }

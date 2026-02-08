@@ -71,7 +71,7 @@ pub fn spawn_ball(mut commands: Commands, level: Res<Level>) {
 }
 
 /// Get color for a block type
-fn block_type_color(block_type: &BlockType, row: usize) -> Color {
+pub fn block_type_color(block_type: &BlockType, row: usize) -> Color {
     let normal_colors = [
         Color::srgb(0.92, 0.44, 0.44), // Coral
         Color::srgb(0.95, 0.60, 0.35), // Orange
@@ -102,7 +102,7 @@ pub fn durable_color(hits_remaining: u32) -> Color {
 }
 
 /// Spawn a single block at the given position
-fn spawn_block(commands: &mut Commands, x: f32, y: f32, block_type: BlockType, row: usize) {
+pub fn spawn_block(commands: &mut Commands, x: f32, y: f32, block_type: BlockType, row: usize) {
     let color = block_type_color(&block_type, row);
     commands.spawn((
         Sprite {
@@ -119,14 +119,14 @@ fn spawn_block(commands: &mut Commands, x: f32, y: f32, block_type: BlockType, r
 }
 
 /// Grid helper: compute x position for a column
-fn grid_x(col: usize) -> f32 {
+pub fn grid_x(col: usize) -> f32 {
     let total_width = BLOCK_COLS as f32 * (BLOCK_WIDTH + BLOCK_GAP) - BLOCK_GAP;
     let start_x = -total_width / 2.0 + BLOCK_WIDTH / 2.0;
     start_x + col as f32 * (BLOCK_WIDTH + BLOCK_GAP)
 }
 
 /// Grid helper: compute y position for a row
-fn grid_y(row: usize) -> f32 {
+pub fn grid_y(row: usize) -> f32 {
     BLOCKS_START_Y - row as f32 * (BLOCK_HEIGHT + BLOCK_GAP)
 }
 

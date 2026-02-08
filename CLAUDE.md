@@ -40,6 +40,35 @@ trunk build --release  # 本番ビルド (dist/)
 | ESC / タップ | ポーズ解除（オーバーレイ内） |
 | ↑ ↓ / W S | 設定項目選択（ポーズ中） |
 | ← → / A D | 音量調整（ポーズ中） |
+| E | ステージエディタを開く（メニュー画面） |
+
+## ステージエディタ
+
+メニュー画面の `[ エディタ ]` ボタンまたは `E` キーで起動。
+
+- **ツールパレット** (左): ブロック種別を選択（N:通常 / D:耐久 / S:鉄 / E:爆発 / ×:消去）
+- **グリッド** (右): 7行x10列。セルをクリック/タップでブロック配置・削除
+- **テストプレイ**: 配置したブロックでゲームプレイ。ゲームオーバー/クリア後はエディタに戻る
+- **共有**: ステージデータをBase64エンコードしたURLをクリップボードにコピー（サーバー不要）
+- **URL復元**: `?stage=<Base64>` パラメータ付きURLを開くとエディタにステージが復元される（WASM）
+
+### 状態遷移
+
+```
+Menu → Editor → TestPlay → Countdown → Playing → GameOver/LevelClear → Editor
+```
+
+- `TestPlayMode` マーカーリソースで通常プレイとテストプレイを区別
+- テストプレイ中の GameOver/LevelClear では Menu ではなく Editor に戻る
+- `EditorState` リソースにグリッドデータを保持（テストプレイ後も維持）
+
+### 技術詳細
+
+- `BlockType` に `Serialize`/`Deserialize` を derive（serde）
+- Base64エンコード/デコードは外部クレート不使用（カスタムURL-safe実装）
+- WASM: `web-sys` の `Clipboard`, `History`, `Location` API を使用
+- `setup.rs` の `spawn_block`, `grid_x`, `grid_y`, `block_type_color` を `pub` 化してエディタから再利用
+- Bevy のクエリ競合回避: 同一コンポーネントへの mutable アクセスは1クエリにまとめて2パスで処理
 
 ## プロジェクト構造
 
@@ -49,7 +78,7 @@ src/
 ├── components.rs     # ECSコンポーネント (Paddle, Ball, Block, Wall, Collider等)
 ├── resources.rs      # リソース (Score, Level, GameSounds, ComboTracker)
 ├── constants.rs      # ゲーム定数 (画面サイズ、速度、ブロック配置等)
-├── states.rs         # ゲーム状態Enum (Menu, Playing, Paused, GameOver, LevelClear)
+├── states.rs         # ゲーム状態Enum (Menu, Playing, Paused, GameOver, LevelClear, Editor, TestPlay)
 └── systems/
     ├── mod.rs        # システムモジュールの公開
     ├── setup.rs      # 初期化 (カメラ、パドル、ボール、ブロック、壁、UI生成)
@@ -60,7 +89,8 @@ src/
     ├── audio.rs      # サウンド再生 (CollisionEvent)
     ├── game_state.rs # 状態管理 (メニュー/ゲームオーバー/レベルクリア/ポーズ画面)
     ├── powerup.rs    # パワーアップ (ドロップ移動・取得判定・効果管理)
-    └── combo.rs      # コンボシステム (タイマー・ポップアップ表示・フェードアウト)
+    ├── combo.rs      # コンボシステム (タイマー・ポップアップ表示・フェードアウト)
+    └── editor.rs     # ステージエディタ (UI構築・グリッド入力・共有・テストプレイ)
 index.html            # WASM用HTML (ローディング画面付き)
 ```
 
@@ -102,7 +132,7 @@ index.html            # WASM用HTML (ローディング画面付き)
 - **衝突**: AABB判定、パドル当たり位置でボール反射角度が変化
 - **パワーアップ**: ブロック破壊時15%でドロップ（WidePaddle/MultiBall/SlowBall/FireBall）
 - **マルチボール**: 衝突システムは複数ボール対応（`iter_mut()` ループ）。全ボール消失時のみGameOver
-- **ポーズ画面**: ESC / HUD の `||` ボタンで一時停止。上寄せオーバーレイに BGM・効果音の音量設定を表示。ESC / タップで再開
+- **ポーズ画面**: ESC / HUD の `||` ボタンで一時停止。中央オーバーレイに BGM・効果音の音量設定を表示。ESC / タップで再開
 
 ## ビジュアル
 

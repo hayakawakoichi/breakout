@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use crate::components::BlockType;
 
 /// Score tracking resource
 #[derive(Resource, Default)]
@@ -174,6 +175,26 @@ impl AudioSettings {
     /// Format volume as percentage string
     pub fn volume_percent(volume: f32) -> u32 {
         (volume * 100.0).round() as u32
+    }
+}
+
+/// Marker resource indicating game is in test-play mode (launched from editor)
+#[derive(Resource)]
+pub struct TestPlayMode;
+
+/// Editor state resource
+#[derive(Resource)]
+pub struct EditorState {
+    pub selected_tool: Option<BlockType>,
+    pub grid: [[Option<BlockType>; 10]; 7],
+}
+
+impl Default for EditorState {
+    fn default() -> Self {
+        Self {
+            selected_tool: Some(BlockType::Normal),
+            grid: [[None; 10]; 7],
+        }
     }
 }
 

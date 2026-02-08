@@ -51,10 +51,17 @@ impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut App) {
         app
             // Countdown state - enter (fresh level: spawn field + countdown)
+            // Normal game: spawn level-based blocks
             .add_systems(
                 OnEnter(GameState::Countdown),
                 (spawn_paddle, spawn_ball, spawn_blocks, spawn_walls, spawn_ui, record_level_start_score)
-                    .run_if(not(any_with_component::<Block>)),
+                    .run_if(not(any_with_component::<Block>).and(not(resource_exists::<TestPlayMode>))),
+            )
+            // Test play: spawn blocks from editor grid
+            .add_systems(
+                OnEnter(GameState::Countdown),
+                (spawn_paddle, spawn_ball, spawn_blocks_from_editor, spawn_walls, spawn_ui, record_level_start_score)
+                    .run_if(not(any_with_component::<Block>).and(resource_exists::<TestPlayMode>)),
             )
             .add_systems(
                 OnEnter(GameState::Countdown),
@@ -155,4 +162,44 @@ impl Plugin for LevelClearPlugin {
                 next_level_input.run_if(in_state(GameState::LevelClear)),
             );
     }
+}
+
+/// Editor plugin: stage editor + test play systems
+pub struct EditorPlugin;
+
+impl Plugin for EditorPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .init_resource::<EditorState>()
+            .add_systems(Startup, load_stage_from_url)
+            // Editor state
+            .add_systems(OnEnter(GameState::Editor), setup_editor)
+            .add_systems(OnExit(GameState::Editor), cleanup_editor)
+            .add_systems(
+                Update,
+                (
+                    editor_grid_input,
+                    editor_tool_select,
+                    editor_share,
+                    update_share_feedback,
+                    editor_test_play,
+                    editor_back_to_menu,
+                )
+                    .run_if(in_state(GameState::Editor)),
+            )
+            // TestPlay state: spawn editor blocks + countdown, then go to Countdown
+            .add_systems(
+                OnEnter(GameState::TestPlay),
+                enter_test_play,
+            );
+    }
+}
+
+/// System: enter test play mode — insert TestPlayMode marker, spawn editor blocks, transition to Countdown
+fn enter_test_play(
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    commands.insert_resource(TestPlayMode);
+    next_state.set(GameState::Countdown);
 }

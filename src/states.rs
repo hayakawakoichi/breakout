@@ -11,4 +11,6 @@ pub enum GameState {
     GameOver,
     LevelClear,
     Settings,
+    Editor,
+    TestPlay,
 }

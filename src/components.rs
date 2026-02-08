@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Serialize, Deserialize};
 
 /// Paddle marker component
 #[derive(Component)]
@@ -13,7 +14,7 @@ pub struct Ball;
 pub struct Velocity(pub Vec2);
 
 /// Block type variants
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum BlockType {
     Normal,
     Durable { hits_remaining: u32 },
@@ -180,3 +181,40 @@ pub struct CountdownDisplay {
 /// Countdown text marker (attached to child text entity for animation)
 #[derive(Component)]
 pub struct CountdownText;
+
+/// Editor UI root marker (for cleanup)
+#[derive(Component)]
+pub struct EditorUI;
+
+/// Grid cell in the editor (row, col)
+#[derive(Component)]
+pub struct GridCell {
+    pub row: usize,
+    pub col: usize,
+}
+
+/// Tool palette button (None = eraser)
+#[derive(Component)]
+pub struct ToolButton(pub Option<BlockType>);
+
+/// Share button marker
+#[derive(Component)]
+pub struct ShareButton;
+
+/// Test play button marker
+#[derive(Component)]
+pub struct TestPlayButton;
+
+/// Back to menu button marker (editor)
+#[derive(Component)]
+pub struct EditorMenuButton;
+
+/// Share feedback text marker
+#[derive(Component)]
+pub struct ShareFeedback {
+    pub timer: Timer,
+}
+
+/// Editor button in menu screen
+#[derive(Component)]
+pub struct EditorButton;
