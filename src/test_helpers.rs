@@ -20,6 +20,8 @@ pub fn test_app() -> App {
     app.init_resource::<Level>();
     app.init_resource::<ScreenShake>();
     app.init_resource::<ComboTracker>();
+    app.insert_resource(HighScores { scores: [0, 0, 0] });
+    app.init_resource::<LevelStats>();
     app.init_state::<GameState>();
     app.add_event::<CollisionEvent>();
     // Bootstrap frame: first update always produces delta=0

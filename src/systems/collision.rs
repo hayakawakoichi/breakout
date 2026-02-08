@@ -6,17 +6,7 @@ use crate::resources::*;
 use crate::states::GameState;
 use crate::systems::audio::CollisionEvent;
 use crate::systems::setup::durable_color;
-
-/// Check AABB collision between two rectangles
-fn aabb_collision(pos_a: Vec2, size_a: Vec2, pos_b: Vec2, size_b: Vec2) -> bool {
-    let half_a = size_a / 2.0;
-    let half_b = size_b / 2.0;
-
-    pos_a.x - half_a.x < pos_b.x + half_b.x
-        && pos_a.x + half_a.x > pos_b.x - half_b.x
-        && pos_a.y - half_a.y < pos_b.y + half_b.y
-        && pos_a.y + half_a.y > pos_b.y - half_b.y
-}
+use crate::utils::{aabb_collision, rand_f32, simple_rand};
 
 /// Handle ball-paddle collision (multi-ball support)
 pub fn ball_paddle_collision(
@@ -120,6 +110,7 @@ pub fn ball_block_collision(
     mut combo: ResMut<ComboTracker>,
     mut collision_events: EventWriter<CollisionEvent>,
     mut screen_shake: ResMut<crate::resources::ScreenShake>,
+    mut level_stats: ResMut<LevelStats>,
 ) {
     // Track which blocks have been destroyed this frame to avoid double-processing
     let mut destroyed_blocks = Vec::new();
@@ -190,6 +181,11 @@ pub fn ball_block_collision(
                         score.value += gained;
                         combo.last_score_gained = gained;
 
+                        level_stats.blocks_destroyed += 1;
+                        if combo.count > level_stats.max_combo {
+                            level_stats.max_combo = combo.count;
+                        }
+
                         collision_events.send(CollisionEvent::Block);
 
                         if rand_f32() < POWERUP_DROP_CHANCE {
@@ -212,6 +208,11 @@ pub fn ball_block_collision(
                             let gained = SCORE_PER_BLOCK * multiplier + DURABLE_SCORE_BONUS;
                             score.value += gained;
                             combo.last_score_gained = gained;
+
+                            level_stats.blocks_destroyed += 1;
+                            if combo.count > level_stats.max_combo {
+                                level_stats.max_combo = combo.count;
+                            }
 
                             collision_events.send(CollisionEvent::Block);
 
@@ -244,6 +245,11 @@ pub fn ball_block_collision(
                         score.value += gained;
                         combo.last_score_gained = gained;
 
+                        level_stats.blocks_destroyed += 1;
+                        if combo.count > level_stats.max_combo {
+                            level_stats.max_combo = combo.count;
+                        }
+
                         collision_events.send(CollisionEvent::Block);
 
                         // Chain explosion — collect blocks in radius
@@ -257,6 +263,7 @@ pub fn ball_block_collision(
                             &mut combo,
                             &mut collision_events,
                             &mut screen_shake,
+                            &mut level_stats,
                         );
                     }
                 }
@@ -283,6 +290,7 @@ fn process_explosions(
     combo: &mut ResMut<ComboTracker>,
     collision_events: &mut EventWriter<CollisionEvent>,
     screen_shake: &mut ResMut<ScreenShake>,
+    level_stats: &mut ResMut<LevelStats>,
 ) {
     let mut queue_idx = 0;
     while queue_idx < explosion_queue.len() {
@@ -331,6 +339,11 @@ fn process_explosions(
             let gained = SCORE_PER_BLOCK * multiplier;
             score.value += gained;
             combo.last_score_gained = gained;
+
+            level_stats.blocks_destroyed += 1;
+            if combo.count > level_stats.max_combo {
+                level_stats.max_combo = combo.count;
+            }
 
             collision_events.send(CollisionEvent::Block);
             screen_shake.trauma = (screen_shake.trauma + SHAKE_TRAUMA * 0.5).min(1.0);
@@ -402,21 +415,6 @@ fn spawn_particles(commands: &mut Commands, position: Vec2, color: Color) {
     }
 }
 
-/// Simple deterministic random-ish value in [0, 1) from a seed
-fn simple_rand(seed: u32) -> f32 {
-    let n = seed.wrapping_mul(1103515245).wrapping_add(12345);
-    (n & 0x7FFFFFFF) as f32 / 0x7FFFFFFF as f32
-}
-
-/// WASM-compatible pseudo-random f32 in [0, 1) using an atomic counter
-fn rand_f32() -> f32 {
-    use std::sync::atomic::{AtomicU32, Ordering};
-    static COUNTER: AtomicU32 = AtomicU32::new(54321);
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let hash = n.wrapping_mul(1103515245).wrapping_add(12345);
-    (hash & 0x7FFFFFFF) as f32 / 0x7FFFFFFF as f32
-}
-
 /// Check if all non-Steel blocks are destroyed
 pub fn check_level_clear(
     block_query: Query<&Block>,
@@ -437,6 +435,7 @@ pub fn check_level_clear(
 mod tests {
     use super::*;
     use crate::test_helpers::*;
+    use crate::utils::{aabb_collision, simple_rand};
 
     // --- aabb_collision unit tests ---
 

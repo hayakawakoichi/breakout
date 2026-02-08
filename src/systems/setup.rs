@@ -52,7 +52,7 @@ pub fn spawn_paddle(mut commands: Commands) {
 
 /// Spawn the ball
 pub fn spawn_ball(mut commands: Commands, level: Res<Level>) {
-    let initial_direction = Vec2::new(0.5, 0.5).normalize();
+    let initial_direction = Vec2::new(0.15, -1.0).normalize();
     let speed = BALL_SPEED * level.speed_multiplier();
 
     commands.spawn((
@@ -297,9 +297,10 @@ pub fn spawn_walls(mut commands: Commands) {
     ));
 }
 
-/// Spawn score and level UI
-pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+/// Spawn score, level, and high score UI
+pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>, high_scores: Res<HighScores>) {
     let warm_white = Color::srgb(1.0, 0.96, 0.88);
+    let lavender = Color::srgb(0.55, 0.50, 0.65);
     let font_handle: Handle<Font> = asset_server.load(GAME_FONT_PATH);
 
     // HUD bar background
@@ -312,7 +313,7 @@ pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..default()
     }).insert(BackgroundColor(Color::srgba(0.07, 0.07, 0.16, 0.8)));
 
-    // Score text
+    // Score text (top-left)
     commands.spawn((
         Text::new("スコア 0"),
         TextFont {
@@ -330,7 +331,26 @@ pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ScoreText,
     ));
 
-    // Level text
+    // High score text (top-center)
+    commands.spawn((
+        Text::new(format!("ハイスコア {}", high_scores.best())),
+        TextFont {
+            font: font_handle.clone(),
+            font_size: 16.0,
+            font_smoothing: FontSmoothing::None,
+        },
+        TextColor(lavender),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            left: Val::Percent(50.0),
+            margin: UiRect::left(Val::Px(-30.0)),
+            ..default()
+        },
+        HighScoreText,
+    ));
+
+    // Level text (top-right)
     commands.spawn((
         Text::new("レベル 1"),
         TextFont {
@@ -347,6 +367,12 @@ pub fn spawn_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         LevelText,
     ));
+}
+
+/// Record score at level start for statistics
+pub fn record_level_start_score(score: Res<Score>, mut level_stats: ResMut<LevelStats>) {
+    *level_stats = LevelStats::default();
+    level_stats.score_at_level_start = score.value;
 }
 
 /// Load sound assets

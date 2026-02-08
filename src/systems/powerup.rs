@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::components::*;
 use crate::constants::*;
 use crate::resources::*;
+use crate::utils::aabb_collision;
 
 /// Move power-up items downward and despawn when off-screen
 pub fn powerup_movement(
@@ -260,21 +261,11 @@ pub fn update_powerup_effects(
     }
 }
 
-/// AABB collision check
-fn aabb_collision(pos_a: Vec2, size_a: Vec2, pos_b: Vec2, size_b: Vec2) -> bool {
-    let half_a = size_a / 2.0;
-    let half_b = size_b / 2.0;
-
-    pos_a.x - half_a.x < pos_b.x + half_b.x
-        && pos_a.x + half_a.x > pos_b.x - half_b.x
-        && pos_a.y - half_a.y < pos_b.y + half_b.y
-        && pos_a.y + half_a.y > pos_b.y - half_b.y
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_helpers::*;
+    use crate::utils::aabb_collision;
 
     #[test]
     fn powerup_falls_down() {

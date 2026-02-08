@@ -99,6 +99,20 @@ pub struct ActiveEffect {
     pub timer: Timer,
 }
 
+/// High score text UI marker
+#[derive(Component)]
+pub struct HighScoreText;
+
+/// NEW RECORD flash component
+#[derive(Component)]
+pub struct NewRecordFlash {
+    pub timer: Timer,
+}
+
+/// Animated rank marker (bouncing ◀)
+#[derive(Component)]
+pub struct RankMarker(pub f32);
+
 /// Active power-up effects attached to paddle (supports multiple simultaneous effects)
 #[derive(Component, Default)]
 pub struct PowerUpEffects {

@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-use crate::components::Particle;
+use crate::components::{Particle, NewRecordFlash, RankMarker};
 use crate::constants::*;
 use crate::resources::ScreenShake;
+use crate::utils::rand_f32;
 
 /// Update particles: move, fade out, despawn when lifetime expires
 pub fn update_particles(
@@ -58,13 +59,36 @@ pub fn apply_screen_shake(
     }
 }
 
-/// Simple pseudo-random f32 in [0, 1) using an atomic counter (WASM-compatible)
-fn rand_f32() -> f32 {
-    use std::sync::atomic::{AtomicU32, Ordering};
-    static COUNTER: AtomicU32 = AtomicU32::new(12345);
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let hash = n.wrapping_mul(1103515245).wrapping_add(12345);
-    (hash & 0x7FFFFFFF) as f32 / 0x7FFFFFFF as f32
+/// Bounce the ◀ rank marker horizontally
+pub fn update_rank_marker(
+    time: Res<Time>,
+    mut query: Query<(&mut Node, &mut RankMarker)>,
+) {
+    for (mut node, mut marker) in &mut query {
+        marker.0 += time.delta_secs();
+        // Smooth oscillation: 0px → 8px → 0px at ~0.8 Hz
+        let offset = (marker.0 * 5.0).cos().mul_add(-1.0, 1.0) * 4.0;
+        node.margin.left = Val::Px(offset);
+    }
+}
+
+/// Blink NEW RECORD text on/off
+pub fn update_new_record_flash(
+    time: Res<Time>,
+    mut query: Query<(&mut NewRecordFlash, &mut TextColor)>,
+) {
+    for (mut flash, mut text_color) in &mut query {
+        flash.timer.tick(time.delta());
+        if flash.timer.just_finished() {
+            // Toggle visibility by alpha
+            let current_alpha = text_color.0.alpha();
+            if current_alpha > 0.5 {
+                text_color.0 = text_color.0.with_alpha(0.0);
+            } else {
+                text_color.0 = text_color.0.with_alpha(1.0);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
