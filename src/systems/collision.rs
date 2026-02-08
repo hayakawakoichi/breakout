@@ -101,6 +101,27 @@ pub fn ball_wall_collision(
     }
 }
 
+/// Apply combo scoring when a block is destroyed.
+/// Returns the score gained.
+fn apply_block_score(
+    score: &mut Score,
+    combo: &mut ComboTracker,
+    level_stats: &mut LevelStats,
+    bonus: u32,
+) {
+    combo.count += 1;
+    combo.timer.reset();
+    let multiplier = combo.count;
+    let gained = SCORE_PER_BLOCK * multiplier + bonus;
+    score.value += gained;
+    combo.last_score_gained = gained;
+
+    level_stats.blocks_destroyed += 1;
+    if combo.count > level_stats.max_combo {
+        level_stats.max_combo = combo.count;
+    }
+}
+
 /// Handle ball-block collision (multi-ball support + power-up drops + special block types)
 pub fn ball_block_collision(
     mut commands: Commands,
@@ -185,26 +206,13 @@ pub fn ball_block_collision(
                         spawn_particles(&mut commands, block_pos, block_color);
                         screen_shake.trauma = (screen_shake.trauma + SHAKE_TRAUMA).min(1.0);
 
-                        // Combo scoring
-                        combo.count += 1;
-                        combo.timer.reset();
-                        let multiplier = combo.count;
-                        let gained = SCORE_PER_BLOCK * multiplier;
-                        score.value += gained;
-                        combo.last_score_gained = gained;
-
-                        level_stats.blocks_destroyed += 1;
-                        if combo.count > level_stats.max_combo {
-                            level_stats.max_combo = combo.count;
-                        }
-
+                        apply_block_score(&mut score, &mut combo, &mut level_stats, 0);
                         collision_events.send(CollisionEvent::Block);
 
                         maybe_spawn_powerup(&mut commands, block_pos);
                     }
                     BlockType::Durable { hits_remaining } => {
                         if is_fireball || hits_remaining <= 1 {
-                            // Fireball instantly destroys durable blocks; otherwise destroy at 1 hit
                             let block_color = block_sprite.color;
                             commands.entity(block_entity).despawn();
                             destroyed_blocks.push(block_entity);
@@ -212,18 +220,7 @@ pub fn ball_block_collision(
                             screen_shake.trauma =
                                 (screen_shake.trauma + SHAKE_TRAUMA).min(1.0);
 
-                            combo.count += 1;
-                            combo.timer.reset();
-                            let multiplier = combo.count;
-                            let gained = SCORE_PER_BLOCK * multiplier + DURABLE_SCORE_BONUS;
-                            score.value += gained;
-                            combo.last_score_gained = gained;
-
-                            level_stats.blocks_destroyed += 1;
-                            if combo.count > level_stats.max_combo {
-                                level_stats.max_combo = combo.count;
-                            }
-
+                            apply_block_score(&mut score, &mut combo, &mut level_stats, DURABLE_SCORE_BONUS);
                             collision_events.send(CollisionEvent::Block);
 
                             maybe_spawn_powerup(&mut commands, block_pos);
@@ -246,21 +243,9 @@ pub fn ball_block_collision(
                         spawn_particles(&mut commands, block_pos, block_color);
                         screen_shake.trauma = (screen_shake.trauma + SHAKE_TRAUMA * 1.5).min(1.0);
 
-                        combo.count += 1;
-                        combo.timer.reset();
-                        let multiplier = combo.count;
-                        let gained = SCORE_PER_BLOCK * multiplier;
-                        score.value += gained;
-                        combo.last_score_gained = gained;
-
-                        level_stats.blocks_destroyed += 1;
-                        if combo.count > level_stats.max_combo {
-                            level_stats.max_combo = combo.count;
-                        }
-
+                        apply_block_score(&mut score, &mut combo, &mut level_stats, 0);
                         collision_events.send(CollisionEvent::Block);
 
-                        // Defer explosion processing until after the block iteration loop
                         pending_explosions.push(block_pos);
                     }
                 }
@@ -348,18 +333,7 @@ fn process_explosions(
             destroyed_blocks.push(entity);
             spawn_particles(commands, pos, block_color);
 
-            combo.count += 1;
-            combo.timer.reset();
-            let multiplier = combo.count;
-            let gained = SCORE_PER_BLOCK * multiplier;
-            score.value += gained;
-            combo.last_score_gained = gained;
-
-            level_stats.blocks_destroyed += 1;
-            if combo.count > level_stats.max_combo {
-                level_stats.max_combo = combo.count;
-            }
-
+            apply_block_score(score, combo, level_stats, 0);
             collision_events.send(CollisionEvent::Block);
             screen_shake.trauma = (screen_shake.trauma + SHAKE_TRAUMA * 0.5).min(1.0);
 
