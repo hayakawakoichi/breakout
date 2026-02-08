@@ -86,6 +86,7 @@ impl Plugin for GameplayPlugin {
                     update_combo_timer,
                     spawn_combo_popup,
                     spawn_ball_trail,
+                    update_fireball_visual,
                 )
                     .run_if(in_state(GameState::Playing)),
             )

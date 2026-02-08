@@ -111,12 +111,19 @@ pub fn ball_block_collision(
     mut collision_events: EventWriter<CollisionEvent>,
     mut screen_shake: ResMut<crate::resources::ScreenShake>,
     mut level_stats: ResMut<LevelStats>,
+    paddle_effects_query: Query<&PowerUpEffects, With<Paddle>>,
 ) {
+    // Check if fireball is active on any paddle
+    let is_fireball = paddle_effects_query.iter().any(|effects| {
+        effects.effects.iter().any(|e| e.effect_type == PowerUpType::FireBall)
+    });
+
     // Track which blocks have been destroyed this frame to avoid double-processing
     let mut destroyed_blocks = Vec::new();
 
     for (_, ball_transform, mut ball_velocity, ball_collider) in &mut ball_query {
         let mut hit_block = false;
+        let mut pending_explosions: Vec<Vec2> = Vec::new();
 
         for (block_entity, block_transform, block_collider, mut block_sprite, mut block) in
             &mut block_query
@@ -137,30 +144,35 @@ pub fn ball_block_collision(
                 let x_overlap = (BLOCK_WIDTH + BALL_SIZE) / 2.0 - diff.x.abs();
                 let y_overlap = (BLOCK_HEIGHT + BALL_SIZE) / 2.0 - diff.y.abs();
 
-                match block.block_type {
-                    BlockType::Steel => {
-                        // Wall-like robust reflection: set absolute direction to push ball out
-                        if x_overlap < y_overlap {
-                            if diff.x > 0.0 {
-                                ball_velocity.0.x = ball_velocity.0.x.abs();
+                // Fireball skips reflection for non-Steel blocks
+                let skip_reflection = is_fireball && !matches!(block.block_type, BlockType::Steel);
+
+                if !skip_reflection {
+                    match block.block_type {
+                        BlockType::Steel => {
+                            // Wall-like robust reflection: set absolute direction to push ball out
+                            if x_overlap < y_overlap {
+                                if diff.x > 0.0 {
+                                    ball_velocity.0.x = ball_velocity.0.x.abs();
+                                } else {
+                                    ball_velocity.0.x = -ball_velocity.0.x.abs();
+                                }
                             } else {
-                                ball_velocity.0.x = -ball_velocity.0.x.abs();
+                                if diff.y > 0.0 {
+                                    ball_velocity.0.y = ball_velocity.0.y.abs();
+                                } else {
+                                    ball_velocity.0.y = -ball_velocity.0.y.abs();
+                                }
                             }
-                        } else {
-                            if diff.y > 0.0 {
-                                ball_velocity.0.y = ball_velocity.0.y.abs();
-                            } else {
-                                ball_velocity.0.y = -ball_velocity.0.y.abs();
-                            }
+                            collision_events.send(CollisionEvent::Wall);
                         }
-                        collision_events.send(CollisionEvent::Wall);
-                    }
-                    _ => {
-                        // Standard reflection for breakable blocks
-                        if x_overlap < y_overlap {
-                            ball_velocity.0.x = -ball_velocity.0.x;
-                        } else {
-                            ball_velocity.0.y = -ball_velocity.0.y;
+                        _ => {
+                            // Standard reflection for breakable blocks
+                            if x_overlap < y_overlap {
+                                ball_velocity.0.x = -ball_velocity.0.x;
+                            } else {
+                                ball_velocity.0.y = -ball_velocity.0.y;
+                            }
                         }
                     }
                 }
@@ -188,13 +200,11 @@ pub fn ball_block_collision(
 
                         collision_events.send(CollisionEvent::Block);
 
-                        if rand_f32() < POWERUP_DROP_CHANCE {
-                            spawn_powerup(&mut commands, block_pos);
-                        }
+                        maybe_spawn_powerup(&mut commands, block_pos);
                     }
                     BlockType::Durable { hits_remaining } => {
-                        if hits_remaining <= 1 {
-                            // Destroy the block
+                        if is_fireball || hits_remaining <= 1 {
+                            // Fireball instantly destroys durable blocks; otherwise destroy at 1 hit
                             let block_color = block_sprite.color;
                             commands.entity(block_entity).despawn();
                             destroyed_blocks.push(block_entity);
@@ -216,9 +226,7 @@ pub fn ball_block_collision(
 
                             collision_events.send(CollisionEvent::Block);
 
-                            if rand_f32() < POWERUP_DROP_CHANCE {
-                                spawn_powerup(&mut commands, block_pos);
-                            }
+                            maybe_spawn_powerup(&mut commands, block_pos);
                         } else {
                             // Reduce hits and change color
                             block.block_type = BlockType::Durable {
@@ -252,29 +260,36 @@ pub fn ball_block_collision(
 
                         collision_events.send(CollisionEvent::Block);
 
-                        // Chain explosion — collect blocks in radius
-                        let mut explosion_queue = vec![block_pos];
-                        process_explosions(
-                            &mut commands,
-                            &mut block_query,
-                            &mut destroyed_blocks,
-                            &mut explosion_queue,
-                            &mut score,
-                            &mut combo,
-                            &mut collision_events,
-                            &mut screen_shake,
-                            &mut level_stats,
-                        );
+                        // Defer explosion processing until after the block iteration loop
+                        pending_explosions.push(block_pos);
                     }
                 }
 
                 hit_block = true;
-                // Only process one collision per ball per frame
-                break;
+                // Fireball penetrates non-Steel blocks (no break)
+                if !is_fireball || matches!(block.block_type, BlockType::Steel) {
+                    break;
+                }
             }
         }
 
-        if hit_block {
+        // Process deferred explosions after the block iteration loop ends
+        for explosion_pos in pending_explosions {
+            let mut explosion_queue = vec![explosion_pos];
+            process_explosions(
+                &mut commands,
+                &mut block_query,
+                &mut destroyed_blocks,
+                &mut explosion_queue,
+                &mut score,
+                &mut combo,
+                &mut collision_events,
+                &mut screen_shake,
+                &mut level_stats,
+            );
+        }
+
+        if hit_block && !is_fireball {
             continue;
         }
     }
@@ -356,21 +371,33 @@ fn process_explosions(
     }
 }
 
-/// Spawn a random power-up at the given position
-fn spawn_powerup(commands: &mut Commands, position: Vec2) {
+/// Roll once for both drop chance and power-up type to avoid LCG correlation
+fn maybe_spawn_powerup(commands: &mut Commands, position: Vec2) {
     let roll = rand_f32();
-    let power_type = if roll < 0.33 {
+    if roll < POWERUP_DROP_CHANCE {
+        // Remap [0, POWERUP_DROP_CHANCE) → [0, 1) for type selection
+        let type_roll = roll / POWERUP_DROP_CHANCE;
+        spawn_powerup(commands, position, type_roll);
+    }
+}
+
+/// Spawn a power-up at the given position using a pre-computed type roll in [0, 1)
+fn spawn_powerup(commands: &mut Commands, position: Vec2, type_roll: f32) {
+    let power_type = if type_roll < 0.25 {
         PowerUpType::WidePaddle
-    } else if roll < 0.66 {
+    } else if type_roll < 0.50 {
         PowerUpType::MultiBall
-    } else {
+    } else if type_roll < 0.75 {
         PowerUpType::SlowBall
+    } else {
+        PowerUpType::FireBall
     };
 
     let color = match power_type {
         PowerUpType::WidePaddle => Color::srgb(0.95, 0.40, 0.80),  // Magenta
         PowerUpType::MultiBall => Color::srgb(0.40, 0.90, 0.95),   // Cyan
         PowerUpType::SlowBall => Color::srgb(0.60, 0.95, 0.40),    // Lime
+        PowerUpType::FireBall => Color::srgb(1.0, 0.35, 0.15),     // Orange-red
     };
 
     commands.spawn((
@@ -1056,6 +1083,270 @@ mod tests {
             "Should not clear level with remaining blocks"
         );
     }
+
+    // --- fireball tests ---
+
+    /// Spawn a paddle with FireBall active in PowerUpEffects
+    fn spawn_fireball_paddle(world: &mut World) -> Entity {
+        world
+            .spawn((
+                Sprite {
+                    custom_size: Some(Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT)),
+                    ..default()
+                },
+                Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+                Paddle,
+                Collider {
+                    size: Vec2::new(PADDLE_WIDTH, PADDLE_HEIGHT),
+                },
+                PowerUpEffects {
+                    effects: vec![ActiveEffect {
+                        effect_type: PowerUpType::FireBall,
+                        timer: Timer::from_seconds(FIREBALL_DURATION, TimerMode::Once),
+                    }],
+                },
+            ))
+            .id()
+    }
+
+    #[test]
+    fn fireball_passes_through_normal_block() {
+        let mut app = test_app();
+        spawn_fireball_paddle(app.world_mut());
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        // Ball moving upward through the block
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        // Block should be destroyed
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        assert_eq!(block_count, 0, "Fireball should destroy the block");
+
+        // Ball velocity should NOT be reversed (no reflection)
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(
+            ball_vel.0.y > 0.0,
+            "Fireball should not reflect off normal block, vy={}",
+            ball_vel.0.y
+        );
+    }
+
+    #[test]
+    fn fireball_bounces_off_steel() {
+        let mut app = test_app();
+        spawn_fireball_paddle(app.world_mut());
+        spawn_test_block_typed(app.world_mut(), Vec2::new(0.0, 100.0), BlockType::Steel);
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0 - BLOCK_HEIGHT / 2.0 - BALL_SIZE / 2.0 + 2.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(
+            Update,
+            ball_block_collision.before(collect_collision_events),
+        );
+        app.add_systems(Update, collect_collision_events);
+        app.init_resource::<CollectedEvents>();
+        app.update();
+
+        // Steel block should survive
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        assert_eq!(block_count, 1, "Steel block should survive fireball");
+
+        // Ball should reflect
+        let ball_vel = app
+            .world_mut()
+            .query::<&Velocity>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert!(
+            ball_vel.0.y < 0.0,
+            "Fireball should still reflect off steel, vy={}",
+            ball_vel.0.y
+        );
+    }
+
+    #[test]
+    fn fireball_multi_block_penetration() {
+        let mut app = test_app();
+        spawn_fireball_paddle(app.world_mut());
+        // Two blocks at the same position (overlapping with ball)
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0));
+        spawn_test_block(app.world_mut(), Vec2::new(0.0, 100.0 + BLOCK_HEIGHT + 1.0));
+        // Ball overlapping both
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0 + BLOCK_HEIGHT / 2.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        // Fireball should penetrate and destroy both blocks in one frame
+        assert_eq!(
+            block_count, 0,
+            "Fireball should penetrate multiple blocks"
+        );
+    }
+
+    #[test]
+    fn fireball_destroys_durable_instantly() {
+        let mut app = test_app();
+        spawn_fireball_paddle(app.world_mut());
+        spawn_test_block_typed(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            BlockType::Durable { hits_remaining: 3 },
+        );
+        spawn_test_ball(
+            app.world_mut(),
+            Vec2::new(0.0, 100.0),
+            Vec2::new(0.0, BALL_SPEED),
+        );
+
+        app.add_systems(Update, ball_block_collision);
+        app.update();
+
+        let block_count = app
+            .world_mut()
+            .query::<&Block>()
+            .iter(app.world())
+            .count();
+        assert_eq!(
+            block_count, 0,
+            "Fireball should destroy durable block in one hit"
+        );
+    }
+
+    // --- spawn_powerup type mapping ---
+
+    #[test]
+    fn spawn_powerup_selects_wide_paddle() {
+        let mut app = test_app();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_powerup(&mut commands, Vec2::ZERO, 0.1); // < 0.25
+        });
+        app.update();
+
+        let powerup = app
+            .world_mut()
+            .query::<&PowerUp>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert_eq!(powerup.power_type, PowerUpType::WidePaddle);
+    }
+
+    #[test]
+    fn spawn_powerup_selects_multi_ball() {
+        let mut app = test_app();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_powerup(&mut commands, Vec2::ZERO, 0.3); // 0.25..0.50
+        });
+        app.update();
+
+        let powerup = app
+            .world_mut()
+            .query::<&PowerUp>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert_eq!(powerup.power_type, PowerUpType::MultiBall);
+    }
+
+    #[test]
+    fn spawn_powerup_selects_slow_ball() {
+        let mut app = test_app();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_powerup(&mut commands, Vec2::ZERO, 0.6); // 0.50..0.75
+        });
+        app.update();
+
+        let powerup = app
+            .world_mut()
+            .query::<&PowerUp>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert_eq!(powerup.power_type, PowerUpType::SlowBall);
+    }
+
+    #[test]
+    fn spawn_powerup_selects_fire_ball() {
+        let mut app = test_app();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_powerup(&mut commands, Vec2::ZERO, 0.8); // >= 0.75
+        });
+        app.update();
+
+        let powerup = app
+            .world_mut()
+            .query::<&PowerUp>()
+            .iter(app.world())
+            .next()
+            .unwrap();
+        assert_eq!(powerup.power_type, PowerUpType::FireBall);
+    }
+
+    #[test]
+    fn maybe_spawn_powerup_produces_varied_types() {
+        // Regression test: consecutive calls must not always produce the same type.
+        // Spawn many powerups and verify at least 2 distinct types appear.
+        let mut app = test_app();
+        app.add_systems(Update, |mut commands: Commands| {
+            for _ in 0..200 {
+                maybe_spawn_powerup(&mut commands, Vec2::ZERO);
+            }
+        });
+        app.update();
+
+        let types: Vec<PowerUpType> = app
+            .world_mut()
+            .query::<&PowerUp>()
+            .iter(app.world())
+            .map(|p| p.power_type)
+            .collect();
+
+        assert!(!types.is_empty(), "Some powerups should have spawned");
+
+        let mut unique = types.clone();
+        unique.sort_by_key(|t| *t as u8);
+        unique.dedup_by_key(|t| *t as u8);
+        assert!(
+            unique.len() >= 2,
+            "Expected at least 2 distinct powerup types, got {:?}",
+            unique
+        );
+    }
+
+    // --- check_level_clear ---
 
     #[test]
     fn level_clear_ignores_steel_blocks() {

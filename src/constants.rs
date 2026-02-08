@@ -62,3 +62,4 @@ pub const WIDE_PADDLE_DURATION: f32 = 8.0;
 pub const WIDE_PADDLE_MULTIPLIER: f32 = 1.5;
 pub const SLOW_BALL_DURATION: f32 = 6.0;
 pub const SLOW_BALL_MULTIPLIER: f32 = 0.6;
+pub const FIREBALL_DURATION: f32 = 8.0;

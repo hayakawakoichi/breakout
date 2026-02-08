@@ -86,6 +86,7 @@ pub enum PowerUpType {
     WidePaddle,
     MultiBall,
     SlowBall,
+    FireBall,
 }
 
 /// Marker component for falling power-up items

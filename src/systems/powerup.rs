@@ -66,6 +66,13 @@ pub fn paddle_powerup_collision(
                         &existing_effects,
                     );
                 }
+                PowerUpType::FireBall => {
+                    apply_fireball(
+                        &mut commands,
+                        paddle_entity,
+                        &existing_effects,
+                    );
+                }
             }
         }
     }
@@ -205,12 +212,45 @@ fn apply_slow_ball(
     }
 }
 
+/// Apply fireball effect
+fn apply_fireball(
+    commands: &mut Commands,
+    paddle_entity: Entity,
+    existing_effects: &Option<Mut<PowerUpEffects>>,
+) {
+    if let Some(effects) = existing_effects {
+        // Update effects: remove old FireBall and add fresh one
+        let mut new_effects: Vec<ActiveEffect> = effects
+            .effects
+            .iter()
+            .filter(|e| e.effect_type != PowerUpType::FireBall)
+            .map(|e| ActiveEffect {
+                effect_type: e.effect_type,
+                timer: e.timer.clone(),
+            })
+            .collect();
+        new_effects.push(ActiveEffect {
+            effect_type: PowerUpType::FireBall,
+            timer: Timer::from_seconds(FIREBALL_DURATION, TimerMode::Once),
+        });
+        commands.entity(paddle_entity).insert(PowerUpEffects { effects: new_effects });
+    } else {
+        commands.entity(paddle_entity).insert(PowerUpEffects {
+            effects: vec![ActiveEffect {
+                effect_type: PowerUpType::FireBall,
+                timer: Timer::from_seconds(FIREBALL_DURATION, TimerMode::Once),
+            }],
+        });
+    }
+}
+
 /// Update active power-up effects: tick timers and revert when expired
 pub fn update_powerup_effects(
     mut commands: Commands,
     time: Res<Time>,
     mut paddle_query: Query<(Entity, &mut PowerUpEffects, &mut Sprite, &mut Collider), With<Paddle>>,
     mut ball_query: Query<&mut Velocity, With<Ball>>,
+    mut ball_sprite_query: Query<&mut Sprite, (With<Ball>, Without<Paddle>)>,
     level: Res<Level>,
 ) {
     let Ok((paddle_entity, mut effects_comp, mut sprite, mut collider)) =
@@ -250,6 +290,12 @@ pub fn update_powerup_effects(
             PowerUpType::MultiBall => {
                 // MultiBall has no timer-based expiry
             }
+            PowerUpType::FireBall => {
+                // Restore ball color to warm white
+                for mut sprite in &mut ball_sprite_query {
+                    sprite.color = Color::srgb(1.0, 0.96, 0.88);
+                }
+            }
         }
 
         effects_comp.effects.remove(*i);
@@ -258,6 +304,22 @@ pub fn update_powerup_effects(
     // Remove the component entirely if no effects remain
     if effects_comp.effects.is_empty() {
         commands.entity(paddle_entity).remove::<PowerUpEffects>();
+    }
+}
+
+/// Update ball color while fireball is active
+pub fn update_fireball_visual(
+    paddle_query: Query<&PowerUpEffects, With<Paddle>>,
+    mut ball_sprite_query: Query<&mut Sprite, With<Ball>>,
+) {
+    let is_fireball = paddle_query.iter().any(|effects| {
+        effects.effects.iter().any(|e| e.effect_type == PowerUpType::FireBall)
+    });
+
+    if is_fireball {
+        for mut sprite in &mut ball_sprite_query {
+            sprite.color = Color::srgb(1.0, 0.35, 0.15); // Orange-red
+        }
     }
 }
 
@@ -457,6 +519,37 @@ mod tests {
         let effects = effects.unwrap();
         assert_eq!(effects.effects.len(), 1);
         assert_eq!(effects.effects[0].effect_type, PowerUpType::WidePaddle);
+    }
+
+    #[test]
+    fn fireball_effect_created() {
+        let mut app = test_app();
+        let paddle = spawn_test_paddle(app.world_mut(), 0.0);
+        app.world_mut().spawn((
+            Sprite {
+                custom_size: Some(Vec2::splat(POWERUP_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, PADDLE_Y, 0.0),
+            PowerUp {
+                power_type: PowerUpType::FireBall,
+            },
+            Collider {
+                size: Vec2::splat(POWERUP_SIZE),
+            },
+        ));
+        spawn_test_ball(app.world_mut(), Vec2::new(0.0, 0.0), Vec2::new(0.0, BALL_SPEED));
+
+        app.add_systems(Update, paddle_powerup_collision);
+        app.update();
+        // Apply commands
+        app.update();
+
+        let effects = app.world().entity(paddle).get::<PowerUpEffects>();
+        assert!(effects.is_some(), "PowerUpEffects should be added to paddle");
+        let effects = effects.unwrap();
+        assert_eq!(effects.effects.len(), 1);
+        assert_eq!(effects.effects[0].effect_type, PowerUpType::FireBall);
     }
 
     #[test]
