@@ -1,9 +1,19 @@
 use bevy::prelude::*;
 
-use crate::components::{Particle, NewRecordFlash, RankMarker};
+use crate::components::{Ball, Particle, NewRecordFlash, RankMarker};
 use crate::constants::*;
 use crate::resources::ScreenShake;
 use crate::utils::rand_f32;
+
+/// Timer resource for ball trail spawn interval
+#[derive(Resource)]
+pub struct TrailTimer(pub Timer);
+
+impl Default for TrailTimer {
+    fn default() -> Self {
+        Self(Timer::from_seconds(TRAIL_SPAWN_INTERVAL, TimerMode::Repeating))
+    }
+}
 
 /// Update particles: move, fade out, despawn when lifetime expires
 pub fn update_particles(
@@ -24,9 +34,41 @@ pub fn update_particles(
         transform.translation.x += particle.velocity.x * dt;
         transform.translation.y += particle.velocity.y * dt;
 
-        // Fade out based on remaining lifetime
-        let alpha = particle.lifetime.fraction_remaining();
+        // Fade out based on remaining lifetime, scaled by initial alpha
+        let alpha = particle.lifetime.fraction_remaining() * particle.initial_alpha;
         sprite.color = sprite.color.with_alpha(alpha);
+    }
+}
+
+/// Spawn trail particles behind each ball
+pub fn spawn_ball_trail(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut trail_timer: ResMut<TrailTimer>,
+    ball_query: Query<&Transform, With<Ball>>,
+) {
+    trail_timer.0.tick(time.delta());
+    if !trail_timer.0.just_finished() {
+        return;
+    }
+
+    let trail_color = Color::srgba(1.0, 0.96, 0.88, TRAIL_INITIAL_ALPHA);
+
+    for ball_transform in &ball_query {
+        let pos = ball_transform.translation;
+        commands.spawn((
+            Sprite {
+                color: trail_color,
+                custom_size: Some(Vec2::splat(TRAIL_PARTICLE_SIZE)),
+                ..default()
+            },
+            Transform::from_xyz(pos.x, pos.y, 0.5),
+            Particle {
+                lifetime: Timer::from_seconds(TRAIL_LIFETIME, TimerMode::Once),
+                velocity: Vec2::ZERO,
+                initial_alpha: TRAIL_INITIAL_ALPHA,
+            },
+        ));
     }
 }
 
@@ -109,6 +151,7 @@ mod tests {
             Particle {
                 lifetime: Timer::from_seconds(0.01, TimerMode::Once),
                 velocity: Vec2::new(100.0, 100.0),
+                initial_alpha: 1.0,
             },
         ));
 
@@ -123,6 +166,64 @@ mod tests {
             .iter(app.world())
             .count();
         assert_eq!(count, 0, "Particle should be despawned after lifetime");
+    }
+
+    #[test]
+    fn trail_spawns_particle_at_ball_position() {
+        let mut app = test_app();
+        let ball_pos = Vec2::new(100.0, 200.0);
+        spawn_test_ball(app.world_mut(), ball_pos, Vec2::new(0.0, -100.0));
+
+        // Force trail timer to be ready to fire
+        app.world_mut().resource_mut::<TrailTimer>().0 =
+            Timer::from_seconds(0.001, TimerMode::Repeating);
+
+        app.add_systems(Update, spawn_ball_trail);
+        app.update();
+        app.update();
+
+        let count = app
+            .world_mut()
+            .query::<&Particle>()
+            .iter(app.world())
+            .count();
+        assert!(count >= 1, "Trail particle should be spawned");
+    }
+
+    #[test]
+    fn trail_no_panic_without_ball() {
+        let mut app = test_app();
+        app.world_mut().resource_mut::<TrailTimer>().0 =
+            Timer::from_seconds(0.001, TimerMode::Repeating);
+
+        app.add_systems(Update, spawn_ball_trail);
+        app.update(); // Should not panic
+    }
+
+    #[test]
+    fn trail_particle_has_zero_velocity() {
+        let mut app = test_app();
+        spawn_test_ball(app.world_mut(), Vec2::ZERO, Vec2::new(0.0, -100.0));
+        app.world_mut().resource_mut::<TrailTimer>().0 =
+            Timer::from_seconds(0.001, TimerMode::Repeating);
+
+        app.add_systems(Update, spawn_ball_trail);
+        app.update();
+        app.update();
+
+        let particles: Vec<&Particle> = app
+            .world_mut()
+            .query::<&Particle>()
+            .iter(app.world())
+            .collect();
+        assert!(!particles.is_empty(), "Should have trail particles");
+        for p in &particles {
+            assert_eq!(p.velocity, Vec2::ZERO, "Trail should have zero velocity");
+            assert!(
+                (p.initial_alpha - TRAIL_INITIAL_ALPHA).abs() < f32::EPSILON,
+                "Trail should have correct initial alpha"
+            );
+        }
     }
 
     #[test]

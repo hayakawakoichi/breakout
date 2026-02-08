@@ -72,11 +72,12 @@ pub struct LevelClearUI;
 #[derive(Component)]
 pub struct BgmMusic;
 
-/// Particle component for block destruction effects
+/// Particle component for block destruction effects and ball trail
 #[derive(Component)]
 pub struct Particle {
     pub lifetime: Timer,
     pub velocity: Vec2,
+    pub initial_alpha: f32,
 }
 
 /// Power-up item types

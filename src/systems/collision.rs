@@ -410,6 +410,7 @@ fn spawn_particles(commands: &mut Commands, position: Vec2, color: Color) {
             Particle {
                 lifetime: Timer::from_seconds(PARTICLE_LIFETIME, TimerMode::Once),
                 velocity,
+                initial_alpha: 1.0,
             },
         ));
     }

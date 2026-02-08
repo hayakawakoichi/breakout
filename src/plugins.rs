@@ -5,6 +5,7 @@ use crate::states::GameState;
 use crate::systems::audio::CollisionEvent;
 use crate::resources::*;
 use crate::systems::*;
+use crate::systems::effects::TrailTimer;
 
 /// Core plugin: resources, events, startup systems, and always-running systems
 pub struct CorePlugin;
@@ -20,6 +21,7 @@ impl Plugin for CorePlugin {
             .init_resource::<ComboTracker>()
             .insert_resource(HighScores::load())
             .init_resource::<LevelStats>()
+            .init_resource::<TrailTimer>()
             .init_state::<GameState>()
             .add_event::<CollisionEvent>()
             .add_systems(Startup, (setup_camera, load_sounds))
@@ -83,6 +85,7 @@ impl Plugin for GameplayPlugin {
                     update_powerup_effects,
                     update_combo_timer,
                     spawn_combo_popup,
+                    spawn_ball_trail,
                 )
                     .run_if(in_state(GameState::Playing)),
             )

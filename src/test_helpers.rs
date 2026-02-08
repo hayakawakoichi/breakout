@@ -6,6 +6,7 @@ use crate::constants::*;
 use crate::resources::*;
 use crate::states::GameState;
 use crate::systems::audio::CollisionEvent;
+use crate::systems::effects::TrailTimer;
 
 /// Create a minimal Bevy App for testing with all resources and events registered.
 /// Includes a bootstrap frame (first update always has delta=0).
@@ -22,6 +23,7 @@ pub fn test_app() -> App {
     app.init_resource::<ComboTracker>();
     app.insert_resource(HighScores { scores: [0, 0, 0] });
     app.init_resource::<LevelStats>();
+    app.init_resource::<TrailTimer>();
     app.init_state::<GameState>();
     app.add_event::<CollisionEvent>();
     // Bootstrap frame: first update always produces delta=0

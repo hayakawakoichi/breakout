@@ -35,6 +35,12 @@ pub const PARTICLE_SIZE: f32 = 4.0;
 pub const PARTICLE_SPEED: f32 = 200.0;
 pub const PARTICLE_LIFETIME: f32 = 0.4;
 
+// Ball trail
+pub const TRAIL_SPAWN_INTERVAL: f32 = 0.05; // ~3 frames at 60fps
+pub const TRAIL_PARTICLE_SIZE: f32 = 8.0;
+pub const TRAIL_LIFETIME: f32 = 0.15;
+pub const TRAIL_INITIAL_ALPHA: f32 = 0.5;
+
 // Screen shake
 pub const SHAKE_TRAUMA: f32 = 0.5;
 pub const SHAKE_DECAY: f32 = 1.5;
